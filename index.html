@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoresChat Bots</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --laranja: #FF6B00;
+      --bg: #080808;
+      --card: #141414;
+      --card2: #1a1a1a;
+      --borda: #1f1f1f;
+      --texto: #fff;
+      --sub: rgba(255,255,255,0.45);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; }
+
+    /* HEADER */
+    header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--borda); background: #0d0d0d; position: sticky; top: 0; z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 36px; height: 36px; background: var(--laranja); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-text { font-size: 18px; font-weight: 800; }
+    .logo-badge { background: rgba(255,107,0,0.15); border: 1px solid rgba(255,107,0,0.3); color: var(--laranja); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+    .btn-primary { background: var(--laranja); color: #fff; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: opacity .2s; }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* HERO */
+    .hero { text-align: center; padding: 60px 24px 40px; }
+    .hero h1 { font-size: 42px; font-weight: 900; margin-bottom: 14px; }
+    .hero h1 span { color: var(--laranja); }
+    .hero p { color: var(--sub); font-size: 16px; max-width: 500px; margin: 0 auto 32px; line-height: 1.6; }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-outline { background: transparent; color: var(--laranja); border: 1px solid var(--laranja); padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all .2s; }
+    .btn-outline:hover { background: rgba(255,107,0,0.1); }
+    .btn-big { padding: 14px 32px; font-size: 15px; border-radius: 12px; }
+
+    /* MAIN */
+    main { max-width: 900px; margin: 0 auto; padding: 0 24px 60px; }
+
+    /* LOGIN */
+    #tela-login { display: flex; flex-direction: column; align-items: center; padding: 40px 24px; }
+    .login-card { background: var(--card); border: 1px solid var(--borda); border-radius: 20px; padding: 32px; width: 100%; max-width: 420px; }
+    .login-card h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .login-card p { color: var(--sub); font-size: 13px; margin-bottom: 24px; }
+    .input-group { margin-bottom: 14px; }
+    .input-group label { display: block; font-size: 12px; font-weight: 600; color: var(--sub); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-group input { width: 100%; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 14px; outline: none; transition: border .2s; }
+    .input-group input:focus { border-color: var(--laranja); }
+    .btn-full { width: 100%; padding: 13px; font-size: 15px; border-radius: 12px; margin-top: 8px; }
+    .login-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .tab { flex: 1; padding: 10px; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; color: var(--sub); font-weight: 600; font-size: 13px; cursor: pointer; text-align: center; transition: all .2s; }
+    .tab.active { background: rgba(255,107,0,0.1); border-color: var(--laranja); color: var(--laranja); }
+    .erro-msg { color: #EF4444; font-size: 12px; margin-top: 8px; text-align: center; }
+
+    /* DASHBOARD */
+    #tela-dashboard { display: none; }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .dash-header h2 { font-size: 22px; font-weight: 800; }
+    .bots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .bot-card { background: var(--card); border: 1px solid var(--borda); border-radius: 16px; padding: 20px; cursor: pointer; transition: border-color .2s; }
+    .bot-card:hover { border-color: var(--laranja); }
+    .bot-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .bot-avatar { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,107,0,0.12); border: 1px solid rgba(255,107,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; overflow: hidden; }
+    .bot-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .bot-nome { font-weight: 700; font-size: 15px; }
+    .bot-token { font-size: 11px; color: var(--sub); font-family: monospace; margin-top: 2px; }
+    .bot-stats { display: flex; gap: 16px; }
+    .bot-stat { font-size: 12px; color: var(--sub); }
+    .bot-stat span { color: var(--laranja); font-weight: 700; }
+    .badge-ativo { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #22C55E; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-left: auto; }
+    .empty-state { text-align: center; padding: 60px 0; }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .empty-state p { color: var(--sub); font-size: 14px; margin-bottom: 24px; }
+
+    /* BOT DETAIL */
+    #tela-bot { display: none; }
+    .back-btn { display: flex; align-items: center; gap: 8px; color: var(--laranja); font-weight: 600; cursor: pointer; margin-bottom: 24px; font-size: 14px; border: none; background: none; }
+    .bot-detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; padding: 20px; background: var(--card); border: 1px solid var(--borda); border-radius: 16px; }
+    .bot-detail-avatar { width: 64px; height: 64px; border-radius: 16px; background: rgba(255,107,0,0.12); border: 2px solid rgba(255,107,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 28px; overflow: hidden; flex-shrink: 0; }
+    .bot-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .bot-detail-info { flex: 1; }
+    .bot-detail-nome { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .token-box { display: flex; align-items: center; gap: 8px; background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+    .token-text { font-family: monospace; font-size: 12px; color: var(--laranja); flex: 1; word-break: break-all; }
+    .copy-btn { background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.3); color: var(--laranja); padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .copy-btn:hover { background: rgba(255,107,0,0.2); }
+    .secoes { display: grid; gap: 20px; }
+    .secao { background: var(--card); border: 1px solid var(--borda); border-radius: 16px; padding: 20px; }
+    .secao-titulo { font-size: 13px; font-weight: 700; color: var(--laranja); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+    .comandos-lista { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .comando-item { display: flex; align-items: center; gap: 10px; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; }
+    .comando-nome { font-family: monospace; font-size: 13px; color: var(--laranja); font-weight: 700; min-width: 100px; }
+    .comando-resp { font-size: 12px; color: var(--sub); flex: 1; }
+    .btn-delete { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #EF4444; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .add-comando-form { display: grid; gap: 10px; }
+    .add-cmd-row { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+    .input-small { background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 13px; outline: none; width: 100%; }
+    .input-small:focus { border-color: var(--laranja); }
+    .variaveis { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .var-badge { background: rgba(255,107,0,0.08); border: 1px solid rgba(255,107,0,0.2); color: var(--laranja); font-size: 10px; padding: 2px 8px; border-radius: 20px; font-family: monospace; }
+    .grupos-lista { display: flex; flex-direction: column; gap: 8px; }
+    .grupo-item { display: flex; align-items: center; gap: 10px; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; }
+    .grupo-id { font-family: monospace; font-size: 12px; color: var(--sub); flex: 1; }
+    .instrucoes { background: rgba(255,107,0,0.05); border: 1px solid rgba(255,107,0,0.15); border-radius: 12px; padding: 16px; }
+    .instrucoes ol { padding-left: 18px; }
+    .instrucoes li { color: var(--sub); font-size: 13px; line-height: 1.8; }
+    .instrucoes li strong { color: #fff; }
+    .instrucoes code { background: var(--card2); border: 1px solid var(--borda); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--laranja); }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 24px; display: none; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--borda); border-radius: 20px; padding: 28px; width: 100%; max-width: 420px; }
+    .modal h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .modal p { color: var(--sub); font-size: 13px; margin-bottom: 20px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel { flex: 1; padding: 12px; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; color: var(--sub); font-weight: 700; cursor: pointer; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a1a; border: 1px solid var(--borda); border-radius: 12px; padding: 12px 18px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all .3s; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.sucesso { border-color: rgba(34,197,94,0.4); color: #22C55E; }
+    .toast.erro { border-color: rgba(239,68,68,0.4); color: #EF4444; }
+
+    /* USER INFO */
+    .user-info { display: flex; align-items: center; gap: 8px; }
+    .user-nome { font-size: 13px; font-weight: 600; color: var(--sub); }
+    .btn-logout { background: none; border: 1px solid var(--borda); color: var(--sub); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+    .btn-logout:hover { border-color: #EF4444; color: #EF4444; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 28px; }
+      .add-cmd-row { grid-template-columns: 1fr; }
+      .bots-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <span class="logo-text">BoresChat</span>
+    <span class="logo-badge">BOTS</span>
+  </div>
+  <div id="header-actions">
+    <button class="btn-primary" onclick="mostrarLogin()">Entrar</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<div id="tela-hero">
+  <div class="hero">
+    <h1>Crie bots para o<br/><span>BoresChat</span></h1>
+    <p>Configure comandos personalizados, automatize respostas e adicione bots aos seus grupos com um único token.</p>
+    <div class="hero-btns">
+      <button class="btn-primary btn-big" onclick="mostrarLogin('cadastro')">🚀 Criar meu bot</button>
+      <button class="btn-outline btn-big" onclick="mostrarLogin('login')">Já tenho conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN / CADASTRO -->
+<div id="tela-login" style="display:none">
+  <div class="login-card">
+    <div class="login-tabs">
+      <div class="tab active" id="tab-login" onclick="trocarTab('login')">Entrar</div>
+      <div class="tab" id="tab-cadastro" onclick="trocarTab('cadastro')">Cadastrar</div>
+    </div>
+
+    <div id="form-login">
+      <h2>Bem-vindo de volta</h2>
+      <p>Entre com seu email para gerenciar seus bots</p>
+      <div class="input-group"><label>Email</label><input type="email" id="login-email" placeholder="seu@email.com" /></div>
+      <div class="input-group"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" /></div>
+      <div class="erro-msg" id="login-erro"></div>
+      <button class="btn-primary btn-full" onclick="fazerLogin()">Entrar</button>
+    </div>
+
+    <div id="form-cadastro" style="display:none">
+      <h2>Criar conta</h2>
+      <p>Crie sua conta para começar a usar bots</p>
+      <div class="input-group"><label>Nome</label><input type="text" id="cad-nome" placeholder="Seu nome" /></div>
+      <div class="input-group"><label>Email</label><input type="email" id="cad-email" placeholder="seu@email.com" /></div>
+      <div class="input-group"><label>Senha</label><input type="password" id="cad-senha" placeholder="Mínimo 6 caracteres" /></div>
+      <div class="erro-msg" id="cad-erro"></div>
+      <button class="btn-primary btn-full" onclick="fazerCadastro()">Criar conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="tela-dashboard" style="display:none">
+  <main>
+    <div class="dash-header">
+      <h2>Meus Bots</h2>
+      <button class="btn-primary" onclick="abrirModalCriar()">+ Novo Bot</button>
+    </div>
+    <div class="bots-grid" id="bots-lista"></div>
+  </main>
+</div>
+
+<!-- BOT DETAIL -->
+<div id="tela-bot" style="display:none">
+  <main>
+    <button class="back-btn" onclick="voltarDash()">← Meus Bots</button>
+
+    <div class="bot-detail-header">
+      <div class="bot-detail-avatar" id="bot-avatar-detalhe">🤖</div>
+      <div class="bot-detail-info">
+        <div class="bot-detail-nome" id="bot-nome-detalhe"></div>
+        <div style="color:var(--sub);font-size:13px" id="bot-desc-detalhe"></div>
+        <div class="token-box">
+          <span class="token-text" id="bot-token-detalhe"></span>
+          <button class="copy-btn" onclick="copiarToken()">📋 Copiar</button>
+        </div>
+      </div>
+      <button class="btn-delete" onclick="deletarBot()" style="align-self:flex-start">🗑️ Deletar</button>
+    </div>
+
+    <div class="secoes">
+
+      <!-- COMANDOS -->
+      <div class="secao">
+        <div class="secao-titulo">⚡ Comandos</div>
+        <div class="comandos-lista" id="comandos-lista"></div>
+
+        <div class="add-comando-form">
+          <div class="add-cmd-row">
+            <input class="input-small" id="cmd-nome" placeholder="/saudacao" />
+            <input class="input-small" id="cmd-desc" placeholder="Descrição curta" />
+          </div>
+          <input class="input-small" id="cmd-resp" placeholder="Resposta: Olá {usuario}! 🔥" />
+          <div class="variaveis">
+            <span style="font-size:11px;color:var(--sub)">Variáveis:</span>
+            <span class="var-badge">{usuario}</span>
+            <span class="var-badge">{grupo}</span>
+            <span class="var-badge">{args}</span>
+          </div>
+          <button class="btn-primary" onclick="adicionarComando()">+ Adicionar Comando</button>
+        </div>
+      </div>
+
+      <!-- GRUPOS -->
+      <div class="secao">
+        <div class="secao-titulo">👥 Grupos com este bot</div>
+        <div class="grupos-lista" id="grupos-lista"></div>
+      </div>
+
+      <!-- COMO ADICIONAR -->
+      <div class="secao">
+        <div class="secao-titulo">📱 Como adicionar ao grupo</div>
+        <div class="instrucoes">
+          <ol>
+            <li>Abra o <strong>BoresChat</strong> no celular</li>
+            <li>Entre no grupo como <strong>administrador</strong></li>
+            <li>Toque em <strong>Gerenciar Grupo</strong> → <strong>Bots</strong></li>
+            <li>Cole seu token: <code id="token-instrucao"></code></li>
+            <li>Toque em <strong>Adicionar Bot</strong></li>
+            <li>Pronto! Digite <code>/ajuda</code> no grupo para testar 🔥</li>
+          </ol>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- MODAL CRIAR BOT -->
+<div class="modal-overlay" id="modal-criar">
+  <div class="modal">
+    <h3>🤖 Novo Bot</h3>
+    <p>Configure as informações básicas do seu bot</p>
+    <div class="input-group"><label>Nome do Bot</label><input class="input-small" id="novo-nome" placeholder="Ex: AssistenteBot" style="width:100%" /></div>
+    <div class="input-group" style="margin-top:10px"><label>Descrição</label><input class="input-small" id="novo-desc" placeholder="O que este bot faz?" style="width:100%" /></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-primary" style="flex:1" onclick="criarBot()">Criar Bot</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBoreschatSuaChaveAqui",
+    authDomain: "boreschatfce4a.firebaseapp.com",
+    projectId: "boreschatfce4a",
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // URL do servidor Railway
+  const API = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://boreschat-bots.up.railway.app';
+
+  let usuarioAtual = null;
+  let botAtual     = null;
+
+  // ─── AUTH STATE ──────────────────────────────────────────────
+  onAuthStateChanged(auth, (user) => {
+    usuarioAtual = user;
+    if (user) {
+      document.getElementById('header-actions').innerHTML = `
+        <div class="user-info">
+          <span class="user-nome">Olá, ${user.displayName || user.email}</span>
+          <button class="btn-logout" onclick="window.fazerLogout()">Sair</button>
+        </div>`;
+      mostrarDash();
+    } else {
+      document.getElementById('header-actions').innerHTML = `<button class="btn-primary" onclick="mostrarLogin()">Entrar</button>`;
+    }
+  });
+
+  // ─── NAVEGAÇÃO ────────────────────────────────────────────────
+  window.mostrarLogin = (tab = 'login') => {
+    document.getElementById('tela-hero').style.display = 'none';
+    document.getElementById('tela-login').style.display = 'flex';
+    document.getElementById('tela-dashboard').style.display = 'none';
+    document.getElementById('tela-bot').style.display = 'none';
+    trocarTab(tab);
+  };
+
+  window.mostrarDash = async () => {
+    document.getElementById('tela-hero').style.display = 'none';
+    document.getElementById('tela-login').style.display = 'none';
+    document.getElementById('tela-dashboard').style.display = 'block';
+    document.getElementById('tela-bot').style.display = 'none';
+    await carregarBots();
+  };
+
+  window.voltarDash = () => mostrarDash();
+
+  window.trocarTab = (tab) => {
+    document.getElementById('tab-login').className    = 'tab' + (tab === 'login'    ? ' active' : '');
+    document.getElementById('tab-cadastro').className = 'tab' + (tab === 'cadastro' ? ' active' : '');
+    document.getElementById('form-login').style.display    = tab === 'login'    ? 'block' : 'none';
+    document.getElementById('form-cadastro').style.display = tab === 'cadastro' ? 'block' : 'none';
+  };
+
+  // ─── AUTH ─────────────────────────────────────────────────────
+  window.fazerLogin = async () => {
+    const email = document.getElementById('login-email').value;
+    const senha = document.getElementById('login-senha').value;
+    try {
+      await signInWithEmailAndPassword(auth, email, senha);
+    } catch (e) {
+      document.getElementById('login-erro').textContent = 'Email ou senha incorretos';
+    }
+  };
+
+  window.fazerCadastro = async () => {
+    const nome  = document.getElementById('cad-nome').value;
+    const email = document.getElementById('cad-email').value;
+    const senha = document.getElementById('cad-senha').value;
+    if (!nome || !email || !senha) { document.getElementById('cad-erro').textContent = 'Preencha todos os campos'; return; }
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, senha);
+      await updateProfile(cred.user, { displayName: nome });
+    } catch (e) {
+      document.getElementById('cad-erro').textContent = e.code === 'auth/email-already-in-use' ? 'Email já cadastrado' : 'Erro ao criar conta';
+    }
+  };
+
+  window.fazerLogout = async () => {
+    await signOut(auth);
+    document.getElementById('tela-hero').style.display = 'block';
+  };
+
+  // ─── BOTS ─────────────────────────────────────────────────────
+  async function carregarBots() {
+    if (!usuarioAtual) return;
+    try {
+      const resp = await fetch(`${API}/api/bots/${usuarioAtual.uid}`);
+      const data = await resp.json();
+      renderBots(data.bots || []);
+    } catch (e) {
+      renderBots([]);
+    }
+  }
+
+  function renderBots(bots) {
+    const lista = document.getElementById('bots-lista');
+    if (bots.length === 0) {
+      lista.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">🤖</div>
+        <h3>Nenhum bot ainda</h3>
+        <p>Crie seu primeiro bot e adicione em grupos do BoresChat</p>
+        <button class="btn-primary btn-big" onclick="abrirModalCriar()">+ Criar meu primeiro bot</button>
+      </div>`;
+      return;
+    }
+    lista.innerHTML = bots.map(bot => `
+      <div class="bot-card" onclick="abrirBot('${bot.token}')">
+        <div class="bot-card-header">
+          <div class="bot-avatar">${bot.foto ? `<img src="${bot.foto}"/>` : '🤖'}</div>
+          <div style="flex:1">
+            <div class="bot-nome">${bot.nome}</div>
+            <div class="bot-token">${bot.token.substring(0, 20)}...</div>
+          </div>
+          <span class="badge-ativo">● ativo</span>
+        </div>
+        <div class="bot-stats">
+          <div class="bot-stat">Comandos: <span>${Object.keys(bot.comandos || {}).length}</span></div>
+          <div class="bot-stat">Grupos: <span>${(bot.grupos || []).length}</span></div>
+        </div>
+      </div>`).join('');
+  }
+
+  window.abrirModalCriar = () => {
+    document.getElementById('modal-criar').classList.add('show');
+  };
+  window.fecharModal = () => {
+    document.getElementById('modal-criar').classList.remove('show');
+  };
+
+  window.criarBot = async () => {
+    const nome = document.getElementById('novo-nome').value.trim();
+    const desc = document.getElementById('novo-desc').value.trim();
+    if (!nome) { toast('Digite um nome para o bot', 'erro'); return; }
+    try {
+      const resp = await fetch(`${API}/api/bots/criar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, descricao: desc, donoId: usuarioAtual.uid })
+      });
+      const data = await resp.json();
+      if (data.sucesso) {
+        fecharModal();
+        toast(`Bot "${nome}" criado! 🎉`, 'sucesso');
+        await carregarBots();
+        abrirBot(data.token);
+      }
+    } catch (e) { toast('Erro ao criar bot', 'erro'); }
+  };
+
+  window.abrirBot = async (token) => {
+    try {
+      const resp = await fetch(`${API}/api/bot/${token}`);
+      const data = await resp.json();
+      botAtual = data.bot;
+      renderBotDetalhe(botAtual);
+      document.getElementById('tela-dashboard').style.display = 'none';
+      document.getElementById('tela-bot').style.display = 'block';
+    } catch (e) { toast('Erro ao carregar bot', 'erro'); }
+  };
+
+  function renderBotDetalhe(bot) {
+    document.getElementById('bot-nome-detalhe').textContent  = bot.nome;
+    document.getElementById('bot-desc-detalhe').textContent  = bot.descricao || 'Sem descrição';
+    document.getElementById('bot-token-detalhe').textContent = bot.token;
+    document.getElementById('token-instrucao').textContent   = bot.token;
+    document.getElementById('bot-avatar-detalhe').innerHTML  = bot.foto ? `<img src="${bot.foto}"/>` : '🤖';
+    renderComandos(bot.comandos || {});
+    renderGrupos(bot.grupos || []);
+  }
+
+  function renderComandos(comandos) {
+    const lista = document.getElementById('comandos-lista');
+    const keys  = Object.keys(comandos);
+    if (keys.length === 0) {
+      lista.innerHTML = `<div style="color:var(--sub);font-size:13px;padding:8px 0">Nenhum comando ainda. Adicione abaixo!</div>`;
+      return;
+    }
+    lista.innerHTML = keys.map(cmd => `
+      <div class="comando-item">
+        <span class="comando-nome">${cmd}</span>
+        <span class="comando-resp">${comandos[cmd].resposta}</span>
+        <button class="btn-delete" onclick="removerComando('${cmd}')">✕</button>
+      </div>`).join('');
+  }
+
+  function renderGrupos(grupos) {
+    const lista = document.getElementById('grupos-lista');
+    if (grupos.length === 0) {
+      lista.innerHTML = `<div style="color:var(--sub);font-size:13px;padding:8px 0">Bot ainda não adicionado em nenhum grupo.</div>`;
+      return;
+    }
+    lista.innerHTML = grupos.map(g => `
+      <div class="grupo-item">
+        <span class="grupo-id">${g}</span>
+        <button class="btn-delete" onclick="removerGrupo('${g}')">Remover</button>
+      </div>`).join('');
+  }
+
+  window.adicionarComando = async () => {
+    const cmd  = document.getElementById('cmd-nome').value.trim();
+    const resp = document.getElementById('cmd-resp').value.trim();
+    const desc = document.getElementById('cmd-desc').value.trim();
+    if (!cmd || !resp) { toast('Preencha o comando e a resposta', 'erro'); return; }
+    try {
+      await fetch(`${API}/api/bot/${botAtual.token}/comando`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comando: cmd, resposta: resp, descricao: desc })
+      });
+      document.getElementById('cmd-nome').value = '';
+      document.getElementById('cmd-resp').value = '';
+      document.getElementById('cmd-desc').value = '';
+      toast(`Comando ${cmd} adicionado!`, 'sucesso');
+      await abrirBot(botAtual.token);
+    } catch (e) { toast('Erro ao adicionar comando', 'erro'); }
+  };
+
+  window.removerComando = async (cmd) => {
+    await fetch(`${API}/api/bot/${botAtual.token}/comando/${encodeURIComponent(cmd)}`, { method: 'DELETE' });
+    toast('Comando removido', 'sucesso');
+    await abrirBot(botAtual.token);
+  };
+
+  window.removerGrupo = async (grupoId) => {
+    await fetch(`${API}/api/bot/${botAtual.token}/grupo/${grupoId}`, { method: 'DELETE' });
+    toast('Bot removido do grupo', 'sucesso');
+    await abrirBot(botAtual.token);
+  };
+
+  window.deletarBot = async () => {
+    if (!confirm(`Deletar o bot "${botAtual.nome}"? Isso é irreversível.`)) return;
+    await fetch(`${API}/api/bot/${botAtual.token}`, { method: 'DELETE' });
+    toast('Bot deletado', 'sucesso');
+    voltarDash();
+  };
+
+  window.copiarToken = () => {
+    navigator.clipboard.writeText(botAtual.token);
+    toast('Token copiado!', 'sucesso');
+  };
+
+  // ─── TOAST ────────────────────────────────────────────────────
+  function toast(msg, tipo = 'sucesso') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className   = `toast ${tipo} show`;
+    setTimeout(() => el.className = 'toast', 3000);
+  }
+  window.toast = toast;
+</script>
+</body>
+</html>
