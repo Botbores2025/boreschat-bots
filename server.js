@@ -127,9 +127,14 @@ async function processarComando(msgDoc, grupoId, botDados) {
 
   // Recarrega comandos do Firestore sempre (pega atualizações em tempo real)
   let comandosAtuais = {};
+  // ─── BUG FIX: recarrega TODOS os dados do bot, não só comandos ───────────
+  let botDadosAtual = botDados;
   try {
     const botDoc = await db.collection('bots').doc(botDados.token).get();
-    comandosAtuais = botDoc.data()?.comandos || {};
+    if (botDoc.exists) {
+      botDadosAtual = { ...botDados, ...botDoc.data() };
+      comandosAtuais = botDadosAtual.comandos || {};
+    }
   } catch (e) {}
 
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
@@ -141,7 +146,7 @@ async function processarComando(msgDoc, grupoId, botDados) {
       .replace(/{usuario}/g, autorNome)
       .replace(/{grupo}/g, grupoId)
       .replace(/{args}/g, args || '');
-    await enviarMensagemBot(grupoId, resposta, botDados, { replyTo });
+    await enviarMensagemBot(grupoId, resposta, botDadosAtual, { replyTo });
     return;
   }
 
@@ -152,22 +157,22 @@ async function processarComando(msgDoc, grupoId, botDados) {
       ? keys.map(cmd => `/${cmd} — ${comandosAtuais[cmd].descricao || comandosAtuais[cmd].resposta.substring(0, 30)}`).join('\n')
       : 'Nenhum comando customizado ainda.';
 
-    const textoResp = `🤖 *${botDados.nome}*\n\n⚡ COMANDOS DISPONÍVEIS:\n\n${lista}\n\n📌 PADRÃO:\n/ajuda — Este menu\n/ping — Testar bot\n/menu — Menu com botões`;
-    await enviarMensagemBot(grupoId, textoResp, botDados, { replyTo });
+    const textoResp = `🤖 *${botDadosAtual.nome}*\n\n⚡ COMANDOS DISPONÍVEIS:\n\n${lista}\n\n📌 PADRÃO:\n/ajuda — Este menu\n/ping — Testar bot\n/menu — Menu com botões`;
+    await enviarMensagemBot(grupoId, textoResp, botDadosAtual, { replyTo });
     return;
   }
 
   if (comando === '/ping') {
-    await enviarMensagemBot(grupoId, `🏓 Pong! *${botDados.nome}* está online! ✅`, botDados, { replyTo });
+    await enviarMensagemBot(grupoId, `🏓 Pong! *${botDadosAtual.nome}* está online! ✅`, botDadosAtual, { replyTo });
     return;
   }
 
   if (comando === '/menu') {
-    // CORREÇÃO: envia bot_card com imagem de cabeçalho, texto e botões
-    // Substitua MENU_HEADER_IMAGE_URL pela URL real da sua imagem de cabeçalho
-    const MENU_HEADER_IMAGE_URL = botDados.menuFoto || botDados.foto || '';
+    // ─── BUG FIX: usa botDadosAtual (recarregado do Firestore) ──────────────
+    const MENU_HEADER_IMAGE_URL = botDadosAtual.menuFoto || botDadosAtual.foto || '';
+    console.log(`🖼️ /menu menuFoto="${MENU_HEADER_IMAGE_URL}"`);
 
-    const textoMenu = `━━━━━━━━━━━━━━━━━━━━\n🤖 *${botDados.nome}*\n━━━━━━━━━━━━━━━━━━━━\n\nOlá, ${autorNome}! 👋\nEscolha uma das opções abaixo:`;
+    const textoMenu = `━━━━━━━━━━━━━━━━━━━━\n🤖 *${botDadosAtual.nome}*\n━━━━━━━━━━━━━━━━━━━━\n\nOlá, ${autorNome}! 👋\nEscolha uma das opções abaixo:`;
 
     const botoes = [
       { label: '⚡ Comandos',   comando: '/ajuda' },
@@ -178,7 +183,7 @@ async function processarComando(msgDoc, grupoId, botDados) {
     await enviarMensagemBot(
       grupoId,
       textoMenu,
-      botDados,
+      botDadosAtual,
       {
         replyTo,
         // Se não tiver imagem de cabeçalho cadastrada, não passa fotoUrl
@@ -191,8 +196,8 @@ async function processarComando(msgDoc, grupoId, botDados) {
 
   if (comando === '/info') {
     const keys = Object.keys(comandosAtuais);
-    const textoInfo = `ℹ️ *${botDados.nome}*\n\nComandos configurados: ${keys.length}\nGrupos ativos: ${(botDados.grupos || []).length}`;
-    await enviarMensagemBot(grupoId, textoInfo, botDados, { replyTo });
+    const textoInfo = `ℹ️ *${botDadosAtual.nome}*\n\nComandos configurados: ${keys.length}\nGrupos ativos: ${(botDadosAtual.grupos || []).length}`;
+    await enviarMensagemBot(grupoId, textoInfo, botDadosAtual, { replyTo });
     return;
   }
 }
