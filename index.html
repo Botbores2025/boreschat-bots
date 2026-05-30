@@ -290,9 +290,13 @@
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
   const firebaseConfig = {
-    apiKey: "AIzaSyBoreschatSuaChaveAqui",
+    apiKey: "AIzaSyBK4Ixsgd9XLtab19MKlMzNsJzRwLx5TeE",
     authDomain: "boreschatfce4a.firebaseapp.com",
+    databaseURL: "https://boreschatfce4a-default-rtdb.firebaseio.com",
     projectId: "boreschatfce4a",
+    storageBucket: "boreschatfce4a.firebasestorage.app",
+    messagingSenderId: "796879421984",
+    appId: "1:796879421984:web:019fd7ec3d32d5f5537245"
   };
 
   const app  = initializeApp(firebaseConfig);
@@ -301,7 +305,7 @@
   // URL do servidor Railway
   const API = window.location.hostname === 'localhost'
     ? 'http://localhost:3000'
-    : 'https://boreschat-bots.up.railway.app';
+    : 'https://boreschat-bots-production.up.railway.app';
 
   let usuarioAtual = null;
   let botAtual     = null;
