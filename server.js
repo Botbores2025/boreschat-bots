@@ -299,6 +299,10 @@ function pararListener(grupoId, token) {
 }
 
 async function carregarBotsAtivos() {
+  // Limpa todos os listeners antes de recarregar para evitar duplicatas
+  for (const chave of Object.keys(listeners)) {
+    if (listeners[chave]) { listeners[chave](); delete listeners[chave]; }
+  }
   const snap = await db.collection('bots').where('ativo', '==', true).get();
   for (const docSnap of snap.docs) {
     const bot = docSnap.data();
@@ -410,7 +414,10 @@ app.post('/api/bot/:token/grupo/:grupoId', async (req, res) => {
       bots: admin.firestore.FieldValue.arrayUnion(token)
     });
 
-    await iniciarListenerGrupo(grupoId, botDados);
+    // Para listener antigo se existir e recria com dados frescos
+    pararListener(grupoId, botDados.token);
+    const botDocFresco = await db.collection('bots').doc(token).get();
+    await iniciarListenerGrupo(grupoId, botDocFresco.data());
     await enviarMensagemBot(
       grupoId,
       `🤖 *${botDados.nome}* entrou no grupo!\n\nDigite /menu para o menu interativo.`,
