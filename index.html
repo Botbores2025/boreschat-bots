@@ -451,6 +451,7 @@
     try {
       const resp = await fetch(`${API}/api/bot/${token}`);
       const data = await resp.json();
+      console.log('Bot carregado:', JSON.stringify(data.bot?.comandos));
       botAtual = data.bot;
       renderBotDetalhe(botAtual);
       document.getElementById('tela-dashboard').style.display = 'none';
