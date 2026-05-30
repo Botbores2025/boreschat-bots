@@ -17,7 +17,6 @@
     }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; }
 
-    /* HEADER */
     header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--borda); background: #0d0d0d; position: sticky; top: 0; z-index: 100; }
     .logo { display: flex; align-items: center; gap: 10px; }
     .logo-icon { width: 36px; height: 36px; background: var(--laranja); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
@@ -26,7 +25,6 @@
     .btn-primary { background: var(--laranja); color: #fff; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: opacity .2s; }
     .btn-primary:hover { opacity: 0.85; }
 
-    /* HERO */
     .hero { text-align: center; padding: 60px 24px 40px; }
     .hero h1 { font-size: 42px; font-weight: 900; margin-bottom: 14px; }
     .hero h1 span { color: var(--laranja); }
@@ -36,8 +34,7 @@
     .btn-outline:hover { background: rgba(255,107,0,0.1); }
     .btn-big { padding: 14px 32px; font-size: 15px; border-radius: 12px; }
 
-    /* MAIN */
-    main { max-width: 900px; margin: 0 auto; padding: 0 24px 60px; }
+    main { max-width: 920px; margin: 0 auto; padding: 0 24px 60px; }
 
     /* LOGIN */
     #tela-login { display: flex; flex-direction: column; align-items: center; padding: 40px 24px; }
@@ -62,7 +59,7 @@
     .bot-card { background: var(--card); border: 1px solid var(--borda); border-radius: 16px; padding: 20px; cursor: pointer; transition: border-color .2s; }
     .bot-card:hover { border-color: var(--laranja); }
     .bot-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .bot-avatar { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,107,0,0.12); border: 1px solid rgba(255,107,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; overflow: hidden; }
+    .bot-avatar { width: 48px; height: 48px; border-radius: 14px; background: rgba(255,107,0,0.12); border: 1px solid rgba(255,107,0,0.25); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; overflow: hidden; }
     .bot-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .bot-nome { font-weight: 700; font-size: 15px; }
     .bot-token { font-size: 11px; color: var(--sub); font-family: monospace; margin-top: 2px; }
@@ -78,32 +75,63 @@
     /* BOT DETAIL */
     #tela-bot { display: none; }
     .back-btn { display: flex; align-items: center; gap: 8px; color: var(--laranja); font-weight: 600; cursor: pointer; margin-bottom: 24px; font-size: 14px; border: none; background: none; }
-    .bot-detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; padding: 20px; background: var(--card); border: 1px solid var(--borda); border-radius: 16px; }
-    .bot-detail-avatar { width: 64px; height: 64px; border-radius: 16px; background: rgba(255,107,0,0.12); border: 2px solid rgba(255,107,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 28px; overflow: hidden; flex-shrink: 0; }
+
+    /* BOT HEADER CARD */
+    .bot-detail-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; padding: 20px; background: var(--card); border: 1px solid var(--borda); border-radius: 16px; }
+    .bot-detail-avatar-wrap { position: relative; flex-shrink: 0; }
+    .bot-detail-avatar { width: 72px; height: 72px; border-radius: 18px; background: rgba(255,107,0,0.12); border: 2px solid rgba(255,107,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 32px; overflow: hidden; cursor: pointer; transition: opacity .2s; }
+    .bot-detail-avatar:hover { opacity: 0.85; }
     .bot-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .bot-detail-info { flex: 1; }
-    .bot-detail-nome { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-    .token-box { display: flex; align-items: center; gap: 8px; background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+    .avatar-edit-badge { position: absolute; bottom: -4px; right: -4px; background: var(--laranja); border-radius: 8px; padding: 3px 5px; font-size: 10px; cursor: pointer; }
+    .bot-detail-info { flex: 1; min-width: 0; }
+    .bot-detail-nome { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
+    .bot-detail-desc { color: var(--sub); font-size: 13px; margin-bottom: 8px; }
+    .token-box { display: flex; align-items: center; gap: 8px; background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
     .token-text { font-family: monospace; font-size: 12px; color: var(--laranja); flex: 1; word-break: break-all; }
     .copy-btn { background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.3); color: var(--laranja); padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
     .copy-btn:hover { background: rgba(255,107,0,0.2); }
-    .secoes { display: grid; gap: 20px; }
-    .secao { background: var(--card); border: 1px solid var(--borda); border-radius: 16px; padding: 20px; }
-    .secao-titulo { font-size: 13px; font-weight: 700; color: var(--laranja); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+    .bot-detail-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+    .btn-sm-laranja { background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.3); color: var(--laranja); }
+    .btn-sm-laranja:hover { background: rgba(255,107,0,0.2); }
+    .btn-sm-red { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #EF4444; }
+    .btn-sm-red:hover { background: rgba(239,68,68,0.2); }
+
+    /* TABS DO BOT */
+    .bot-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--borda); padding-bottom: 0; }
+    .bot-tab { padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--sub); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .2s; }
+    .bot-tab.active { color: var(--laranja); border-bottom-color: var(--laranja); }
+
+    .secao { background: var(--card); border: 1px solid var(--borda); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .secao-titulo { font-size: 12px; font-weight: 700; color: var(--laranja); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
     .comandos-lista { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
     .comando-item { display: flex; align-items: center; gap: 10px; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; }
-    .comando-nome { font-family: monospace; font-size: 13px; color: var(--laranja); font-weight: 700; min-width: 100px; }
-    .comando-resp { font-size: 12px; color: var(--sub); flex: 1; }
-    .btn-delete { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #EF4444; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .comando-nome { font-family: monospace; font-size: 13px; color: var(--laranja); font-weight: 700; min-width: 110px; }
+    .comando-resp { font-size: 12px; color: var(--sub); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-delete { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #EF4444; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
     .add-comando-form { display: grid; gap: 10px; }
     .add-cmd-row { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
-    .input-small { background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 13px; outline: none; width: 100%; }
+    .input-small { background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 13px; outline: none; width: 100%; transition: border .2s; }
     .input-small:focus { border-color: var(--laranja); }
     .variaveis { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-    .var-badge { background: rgba(255,107,0,0.08); border: 1px solid rgba(255,107,0,0.2); color: var(--laranja); font-size: 10px; padding: 2px 8px; border-radius: 20px; font-family: monospace; }
+    .var-badge { background: rgba(255,107,0,0.08); border: 1px solid rgba(255,107,0,0.2); color: var(--laranja); font-size: 10px; padding: 2px 8px; border-radius: 20px; font-family: monospace; cursor: pointer; }
+    .var-badge:hover { background: rgba(255,107,0,0.18); }
     .grupos-lista { display: flex; flex-direction: column; gap: 8px; }
     .grupo-item { display: flex; align-items: center; gap: 10px; background: var(--card2); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; }
-    .grupo-id { font-family: monospace; font-size: 12px; color: var(--sub); flex: 1; }
+    .grupo-id { font-family: monospace; font-size: 12px; color: var(--sub); flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+    /* CONFIG */
+    .config-row { display: grid; gap: 14px; }
+    .config-item { display: flex; flex-direction: column; gap: 6px; }
+    .config-label { font-size: 12px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: 0.5px; }
+    .config-hint { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 4px; }
+
+    /* FOTO MENU */
+    .menu-foto-preview { width: 100%; height: 140px; border-radius: 12px; overflow: hidden; background: var(--card2); border: 1px solid var(--borda); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; position: relative; }
+    .menu-foto-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .menu-foto-placeholder { color: var(--sub); font-size: 13px; text-align: center; }
+
+    /* INSTRUCOES */
     .instrucoes { background: rgba(255,107,0,0.05); border: 1px solid rgba(255,107,0,0.15); border-radius: 12px; padding: 16px; }
     .instrucoes ol { padding-left: 18px; }
     .instrucoes li { color: var(--sub); font-size: 13px; line-height: 1.8; }
@@ -111,7 +139,7 @@
     .instrucoes code { background: var(--card2); border: 1px solid var(--borda); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--laranja); }
 
     /* MODAL */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 24px; display: none; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 999; padding: 24px; }
     .modal-overlay.show { display: flex; }
     .modal { background: var(--card); border: 1px solid var(--borda); border-radius: 20px; padding: 28px; width: 100%; max-width: 420px; }
     .modal h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
@@ -125,16 +153,20 @@
     .toast.sucesso { border-color: rgba(34,197,94,0.4); color: #22C55E; }
     .toast.erro { border-color: rgba(239,68,68,0.4); color: #EF4444; }
 
-    /* USER INFO */
     .user-info { display: flex; align-items: center; gap: 8px; }
     .user-nome { font-size: 13px; font-weight: 600; color: var(--sub); }
     .btn-logout { background: none; border: 1px solid var(--borda); color: var(--sub); padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
     .btn-logout:hover { border-color: #EF4444; color: #EF4444; }
 
+    /* LOADING */
+    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--sub); font-size: 14px; gap: 10px; }
+
     @media (max-width: 600px) {
       .hero h1 { font-size: 28px; }
       .add-cmd-row { grid-template-columns: 1fr; }
       .bots-grid { grid-template-columns: 1fr; }
+      .bot-detail-header { flex-direction: column; align-items: center; text-align: center; }
+      .bot-detail-acoes { justify-content: center; }
     }
   </style>
 </head>
@@ -155,7 +187,7 @@
 <div id="tela-hero">
   <div class="hero">
     <h1>Crie bots para o<br/><span>BoresChat</span></h1>
-    <p>Configure comandos personalizados, automatize respostas e adicione bots aos seus grupos com um único token.</p>
+    <p>Configure comandos personalizados, foto, prefixo e adicione bots aos seus grupos com um único token.</p>
     <div class="hero-btns">
       <button class="btn-primary btn-big" onclick="mostrarLogin('cadastro')">🚀 Criar meu bot</button>
       <button class="btn-outline btn-big" onclick="mostrarLogin('login')">Já tenho conta</button>
@@ -163,14 +195,13 @@
   </div>
 </div>
 
-<!-- LOGIN / CADASTRO -->
+<!-- LOGIN -->
 <div id="tela-login" style="display:none">
   <div class="login-card">
     <div class="login-tabs">
       <div class="tab active" id="tab-login" onclick="trocarTab('login')">Entrar</div>
       <div class="tab" id="tab-cadastro" onclick="trocarTab('cadastro')">Cadastrar</div>
     </div>
-
     <div id="form-login">
       <h2>Bem-vindo de volta</h2>
       <p>Entre com seu email para gerenciar seus bots</p>
@@ -179,7 +210,6 @@
       <div class="erro-msg" id="login-erro"></div>
       <button class="btn-primary btn-full" onclick="fazerLogin()">Entrar</button>
     </div>
-
     <div id="form-cadastro" style="display:none">
       <h2>Criar conta</h2>
       <p>Crie sua conta para começar a usar bots</p>
@@ -208,26 +238,40 @@
   <main>
     <button class="back-btn" onclick="voltarDash()">← Meus Bots</button>
 
+    <!-- HEADER DO BOT -->
     <div class="bot-detail-header">
-      <div class="bot-detail-avatar" id="bot-avatar-detalhe">🤖</div>
+      <div class="bot-detail-avatar-wrap">
+        <div class="bot-detail-avatar" id="bot-avatar-detalhe" onclick="clicarFotoBot()" title="Clique para trocar a foto">🤖</div>
+        <span class="avatar-edit-badge" onclick="clicarFotoBot()">✏️</span>
+        <input type="file" id="input-foto-bot" accept="image/*" style="display:none" onchange="uploadFotoBot(this)" />
+      </div>
       <div class="bot-detail-info">
         <div class="bot-detail-nome" id="bot-nome-detalhe"></div>
-        <div style="color:var(--sub);font-size:13px" id="bot-desc-detalhe"></div>
+        <div class="bot-detail-desc" id="bot-desc-detalhe"></div>
         <div class="token-box">
           <span class="token-text" id="bot-token-detalhe"></span>
           <button class="copy-btn" onclick="copiarToken()">📋 Copiar</button>
         </div>
+        <div class="bot-detail-acoes">
+          <button class="btn-sm btn-sm-laranja" onclick="abrirModalEditar()">✏️ Editar Bot</button>
+          <button class="btn-sm btn-sm-red" onclick="deletarBot()">🗑️ Deletar</button>
+        </div>
       </div>
-      <button class="btn-delete" onclick="deletarBot()" style="align-self:flex-start">🗑️ Deletar</button>
     </div>
 
-    <div class="secoes">
+    <!-- ABAS -->
+    <div class="bot-tabs">
+      <div class="bot-tab active" onclick="trocarAbaBot('comandos')" id="btab-comandos">⚡ Comandos</div>
+      <div class="bot-tab" onclick="trocarAbaBot('config')" id="btab-config">⚙️ Configurações</div>
+      <div class="bot-tab" onclick="trocarAbaBot('grupos')" id="btab-grupos">👥 Grupos</div>
+      <div class="bot-tab" onclick="trocarAbaBot('ajuda')" id="btab-ajuda">📱 Como usar</div>
+    </div>
 
-      <!-- COMANDOS -->
+    <!-- ABA COMANDOS -->
+    <div id="aba-comandos">
       <div class="secao">
-        <div class="secao-titulo">⚡ Comandos</div>
+        <div class="secao-titulo">⚡ Comandos Configurados</div>
         <div class="comandos-lista" id="comandos-lista"></div>
-
         <div class="add-comando-form">
           <div class="add-cmd-row">
             <input class="input-small" id="cmd-nome" placeholder="/saudacao" />
@@ -235,22 +279,62 @@
           </div>
           <input class="input-small" id="cmd-resp" placeholder="Resposta: Olá {usuario}! 🔥" />
           <div class="variaveis">
-            <span style="font-size:11px;color:var(--sub)">Variáveis:</span>
-            <span class="var-badge">{usuario}</span>
-            <span class="var-badge">{grupo}</span>
-            <span class="var-badge">{args}</span>
+            <span style="font-size:11px;color:var(--sub)">Clique para inserir:</span>
+            <span class="var-badge" onclick="inserirVar('{usuario}')">{usuario}</span>
+            <span class="var-badge" onclick="inserirVar('{grupo}')">{grupo}</span>
+            <span class="var-badge" onclick="inserirVar('{args}')">{args}</span>
           </div>
           <button class="btn-primary" onclick="adicionarComando()">+ Adicionar Comando</button>
         </div>
       </div>
+    </div>
 
-      <!-- GRUPOS -->
+    <!-- ABA CONFIGURAÇÕES -->
+    <div id="aba-config" style="display:none">
+      <div class="secao">
+        <div class="secao-titulo">⚙️ Configurações do Bot</div>
+        <div class="config-row">
+          <div class="config-item">
+            <label class="config-label">Nome do Bot</label>
+            <input class="input-small" id="cfg-nome" placeholder="Ex: LendárioBot" />
+          </div>
+          <div class="config-item">
+            <label class="config-label">Descrição</label>
+            <input class="input-small" id="cfg-desc" placeholder="O que este bot faz?" />
+          </div>
+          <div class="config-item">
+            <label class="config-label">Prefixo dos Comandos</label>
+            <input class="input-small" id="cfg-prefixo" placeholder="/ (padrão)" maxlength="3" />
+            <div class="config-hint">Define qual caractere inicia os comandos. Padrão: /</div>
+          </div>
+          <div class="config-item">
+            <label class="config-label">Foto do Avatar (URL)</label>
+            <input class="input-small" id="cfg-foto" placeholder="https://exemplo.com/foto.jpg" />
+            <div class="config-hint">Cole a URL de uma imagem pública para o avatar do bot</div>
+          </div>
+          <div class="config-item">
+            <label class="config-label">Foto do Menu (/menu)</label>
+            <div class="menu-foto-preview" id="menu-foto-preview">
+              <div class="menu-foto-placeholder">📸 Nenhuma foto configurada</div>
+            </div>
+            <input class="input-small" id="cfg-menu-foto" placeholder="https://exemplo.com/banner.jpg" oninput="previewMenuFoto(this.value)" />
+            <div class="config-hint">Imagem de cabeçalho exibida quando o usuário digitar /menu no grupo</div>
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:16px;width:100%" onclick="salvarConfig()">💾 Salvar Configurações</button>
+      </div>
+    </div>
+
+    <!-- ABA GRUPOS -->
+    <div id="aba-grupos" style="display:none">
       <div class="secao">
         <div class="secao-titulo">👥 Grupos com este bot</div>
         <div class="grupos-lista" id="grupos-lista"></div>
       </div>
+    </div>
 
-      <!-- COMO ADICIONAR -->
+    <!-- ABA AJUDA -->
+    <div id="aba-ajuda" style="display:none">
       <div class="secao">
         <div class="secao-titulo">📱 Como adicionar ao grupo</div>
         <div class="instrucoes">
@@ -264,8 +348,17 @@
           </ol>
         </div>
       </div>
-
+      <div class="secao" style="margin-top:16px">
+        <div class="secao-titulo">🤖 Comandos padrão do bot</div>
+        <div class="comandos-lista">
+          <div class="comando-item"><span class="comando-nome">/ajuda</span><span class="comando-resp">Lista todos os comandos disponíveis</span></div>
+          <div class="comando-item"><span class="comando-nome">/menu</span><span class="comando-resp">Menu interativo com botões clicáveis</span></div>
+          <div class="comando-item"><span class="comando-nome">/ping</span><span class="comando-resp">Testa se o bot está online</span></div>
+          <div class="comando-item"><span class="comando-nome">/info</span><span class="comando-resp">Informações sobre o bot</span></div>
+        </div>
+      </div>
     </div>
+
   </main>
 </div>
 
@@ -274,11 +367,25 @@
   <div class="modal">
     <h3>🤖 Novo Bot</h3>
     <p>Configure as informações básicas do seu bot</p>
-    <div class="input-group"><label>Nome do Bot</label><input class="input-small" id="novo-nome" placeholder="Ex: AssistenteBot" style="width:100%" /></div>
+    <div class="input-group"><label>Nome do Bot</label><input class="input-small" id="novo-nome" placeholder="Ex: LendárioBot" style="width:100%" /></div>
     <div class="input-group" style="margin-top:10px"><label>Descrição</label><input class="input-small" id="novo-desc" placeholder="O que este bot faz?" style="width:100%" /></div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
       <button class="btn-primary" style="flex:1" onclick="criarBot()">Criar Bot</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR BOT -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <h3>✏️ Editar Bot</h3>
+    <p>Atualize as informações do seu bot</p>
+    <div class="input-group"><label>Nome</label><input class="input-small" id="edit-nome" style="width:100%" /></div>
+    <div class="input-group" style="margin-top:10px"><label>Descrição</label><input class="input-small" id="edit-desc" style="width:100%" /></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="fecharModalEditar()">Cancelar</button>
+      <button class="btn-primary" style="flex:1" onclick="salvarEdicao()">Salvar</button>
     </div>
   </div>
 </div>
@@ -292,7 +399,6 @@
   const firebaseConfig = {
     apiKey: "AIzaSyBK4Ixsgd9XLtab19MKlMzNsJzRwLx5TeE",
     authDomain: "boreschatfce4a.firebaseapp.com",
-    databaseURL: "https://boreschatfce4a-default-rtdb.firebaseio.com",
     projectId: "boreschatfce4a",
     storageBucket: "boreschatfce4a.firebasestorage.app",
     messagingSenderId: "796879421984",
@@ -302,7 +408,6 @@
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
 
-  // URL do servidor Railway
   const API = window.location.hostname === 'localhost'
     ? 'http://localhost:3000'
     : 'https://boreschat-bots-production.up.railway.app';
@@ -310,7 +415,6 @@
   let usuarioAtual = null;
   let botAtual     = null;
 
-  // ─── AUTH STATE ──────────────────────────────────────────────
   onAuthStateChanged(auth, (user) => {
     usuarioAtual = user;
     if (user) {
@@ -351,15 +455,19 @@
     document.getElementById('form-cadastro').style.display = tab === 'cadastro' ? 'block' : 'none';
   };
 
+  window.trocarAbaBot = (aba) => {
+    ['comandos','config','grupos','ajuda'].forEach(a => {
+      document.getElementById(`aba-${a}`).style.display = a === aba ? 'block' : 'none';
+      document.getElementById(`btab-${a}`).className = 'bot-tab' + (a === aba ? ' active' : '');
+    });
+  };
+
   // ─── AUTH ─────────────────────────────────────────────────────
   window.fazerLogin = async () => {
     const email = document.getElementById('login-email').value;
     const senha = document.getElementById('login-senha').value;
-    try {
-      await signInWithEmailAndPassword(auth, email, senha);
-    } catch (e) {
-      document.getElementById('login-erro').textContent = 'Email ou senha incorretos';
-    }
+    try { await signInWithEmailAndPassword(auth, email, senha); }
+    catch (e) { document.getElementById('login-erro').textContent = 'Email ou senha incorretos'; }
   };
 
   window.fazerCadastro = async () => {
@@ -378,18 +486,18 @@
   window.fazerLogout = async () => {
     await signOut(auth);
     document.getElementById('tela-hero').style.display = 'block';
+    document.getElementById('tela-dashboard').style.display = 'none';
   };
 
   // ─── BOTS ─────────────────────────────────────────────────────
   async function carregarBots() {
     if (!usuarioAtual) return;
+    document.getElementById('bots-lista').innerHTML = '<div class="loading">⏳ Carregando bots...</div>';
     try {
       const resp = await fetch(`${API}/api/bots/${usuarioAtual.uid}`);
       const data = await resp.json();
       renderBots(data.bots || []);
-    } catch (e) {
-      renderBots([]);
-    }
+    } catch (e) { renderBots([]); }
   }
 
   function renderBots(bots) {
@@ -406,10 +514,10 @@
     lista.innerHTML = bots.map(bot => `
       <div class="bot-card" onclick="abrirBot('${bot.token}')">
         <div class="bot-card-header">
-          <div class="bot-avatar">${bot.foto ? `<img src="${bot.foto}"/>` : '🤖'}</div>
-          <div style="flex:1">
+          <div class="bot-avatar">${bot.foto ? `<img src="${bot.foto}" onerror="this.parentElement.textContent='🤖'"/>` : '🤖'}</div>
+          <div style="flex:1;min-width:0">
             <div class="bot-nome">${bot.nome}</div>
-            <div class="bot-token">${bot.token.substring(0, 20)}...</div>
+            <div class="bot-token">${bot.token.substring(0, 22)}...</div>
           </div>
           <span class="badge-ativo">● ativo</span>
         </div>
@@ -420,12 +528,14 @@
       </div>`).join('');
   }
 
-  window.abrirModalCriar = () => {
-    document.getElementById('modal-criar').classList.add('show');
+  window.abrirModalCriar = () => document.getElementById('modal-criar').classList.add('show');
+  window.fecharModal     = () => document.getElementById('modal-criar').classList.remove('show');
+  window.abrirModalEditar = () => {
+    document.getElementById('edit-nome').value = botAtual.nome || '';
+    document.getElementById('edit-desc').value = botAtual.descricao || '';
+    document.getElementById('modal-editar').classList.add('show');
   };
-  window.fecharModal = () => {
-    document.getElementById('modal-criar').classList.remove('show');
-  };
+  window.fecharModalEditar = () => document.getElementById('modal-editar').classList.remove('show');
 
   window.criarBot = async () => {
     const nome = document.getElementById('novo-nome').value.trim();
@@ -433,8 +543,7 @@
     if (!nome) { toast('Digite um nome para o bot', 'erro'); return; }
     try {
       const resp = await fetch(`${API}/api/bots/criar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, descricao: desc, donoId: usuarioAtual.uid })
       });
       const data = await resp.json();
@@ -447,15 +556,30 @@
     } catch (e) { toast('Erro ao criar bot', 'erro'); }
   };
 
+  window.salvarEdicao = async () => {
+    const nome = document.getElementById('edit-nome').value.trim();
+    const desc = document.getElementById('edit-desc').value.trim();
+    if (!nome) { toast('Digite um nome', 'erro'); return; }
+    try {
+      await fetch(`${API}/api/bot/${botAtual.token}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, descricao: desc })
+      });
+      fecharModalEditar();
+      toast('Bot atualizado!', 'sucesso');
+      await abrirBot(botAtual.token);
+    } catch (e) { toast('Erro ao salvar', 'erro'); }
+  };
+
   window.abrirBot = async (token) => {
     try {
       const resp = await fetch(`${API}/api/bot/${token}`);
       const data = await resp.json();
-      console.log('Bot carregado:', JSON.stringify(data.bot?.comandos));
       botAtual = data.bot;
       renderBotDetalhe(botAtual);
       document.getElementById('tela-dashboard').style.display = 'none';
       document.getElementById('tela-bot').style.display = 'block';
+      trocarAbaBot('comandos');
     } catch (e) { toast('Erro ao carregar bot', 'erro'); }
   };
 
@@ -464,7 +588,18 @@
     document.getElementById('bot-desc-detalhe').textContent  = bot.descricao || 'Sem descrição';
     document.getElementById('bot-token-detalhe').textContent = bot.token;
     document.getElementById('token-instrucao').textContent   = bot.token;
-    document.getElementById('bot-avatar-detalhe').innerHTML  = bot.foto ? `<img src="${bot.foto}"/>` : '🤖';
+    document.getElementById('bot-avatar-detalhe').innerHTML  = bot.foto
+      ? `<img src="${bot.foto}" onerror="this.parentElement.textContent='🤖'"/>`
+      : '🤖';
+
+    // Preenche campos de config
+    document.getElementById('cfg-nome').value      = bot.nome || '';
+    document.getElementById('cfg-desc').value      = bot.descricao || '';
+    document.getElementById('cfg-prefixo').value   = bot.prefixo || '/';
+    document.getElementById('cfg-foto').value      = bot.foto || '';
+    document.getElementById('cfg-menu-foto').value = bot.menuFoto || '';
+    previewMenuFoto(bot.menuFoto || '');
+
     renderComandos(bot.comandos || {});
     renderGrupos(bot.grupos || []);
   }
@@ -492,6 +627,7 @@
     }
     lista.innerHTML = grupos.map(g => `
       <div class="grupo-item">
+        <span style="font-size:16px">👥</span>
         <span class="grupo-id">${g}</span>
         <button class="btn-delete" onclick="removerGrupo('${g}')">Remover</button>
       </div>`).join('');
@@ -504,38 +640,29 @@
     if (!cmd || !resp) { toast('Preencha o comando e a resposta', 'erro'); return; }
     try {
       const r = await fetch(`${API}/api/bot/${botAtual.token}/comando`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ comando: cmd, resposta: resp, descricao: desc })
       });
       const data = await r.json();
-      console.log('Resposta adicionar comando:', data);
-
       if (data.sucesso) {
-        // Atualiza localmente sem precisar de novo fetch
         if (!botAtual.comandos) botAtual.comandos = {};
-        // Salva sem barra (igual ao servidor)
         const cmdFinal = cmd.replace(/^\//, '').toLowerCase();
         botAtual.comandos[cmdFinal] = { resposta: resp, descricao: desc };
         renderComandos(botAtual.comandos);
-
         document.getElementById('cmd-nome').value = '';
         document.getElementById('cmd-resp').value = '';
         document.getElementById('cmd-desc').value = '';
         toast(`Comando /${cmdFinal} adicionado! ✅`, 'sucesso');
-      } else {
-        toast('Erro ao salvar comando', 'erro');
-      }
-    } catch (e) { 
-      console.error('Erro:', e);
-      toast('Erro ao adicionar comando', 'erro'); 
-    }
+      } else { toast('Erro ao salvar comando', 'erro'); }
+    } catch (e) { toast('Erro ao adicionar comando', 'erro'); }
   };
 
   window.removerComando = async (cmd) => {
     await fetch(`${API}/api/bot/${botAtual.token}/comando/${encodeURIComponent(cmd)}`, { method: 'DELETE' });
+    const cmdFinal = cmd.replace(/^\//, '').toLowerCase();
+    delete botAtual.comandos[cmdFinal];
+    renderComandos(botAtual.comandos);
     toast('Comando removido', 'sucesso');
-    await abrirBot(botAtual.token);
   };
 
   window.removerGrupo = async (grupoId) => {
@@ -554,6 +681,70 @@
   window.copiarToken = () => {
     navigator.clipboard.writeText(botAtual.token);
     toast('Token copiado!', 'sucesso');
+  };
+
+  window.inserirVar = (variavel) => {
+    const input = document.getElementById('cmd-resp');
+    const pos = input.selectionStart;
+    const val = input.value;
+    input.value = val.slice(0, pos) + variavel + val.slice(pos);
+    input.focus();
+    input.selectionStart = input.selectionEnd = pos + variavel.length;
+  };
+
+  // ─── SALVAR CONFIG ────────────────────────────────────────────
+  window.salvarConfig = async () => {
+    const nome     = document.getElementById('cfg-nome').value.trim();
+    const desc     = document.getElementById('cfg-desc').value.trim();
+    const prefixo  = document.getElementById('cfg-prefixo').value.trim() || '/';
+    const foto     = document.getElementById('cfg-foto').value.trim();
+    const menuFoto = document.getElementById('cfg-menu-foto').value.trim();
+
+    if (!nome) { toast('Digite um nome', 'erro'); return; }
+    try {
+      await fetch(`${API}/api/bot/${botAtual.token}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, descricao: desc, prefixo, foto, menuFoto })
+      });
+      toast('Configurações salvas! ✅', 'sucesso');
+      await abrirBot(botAtual.token);
+    } catch (e) { toast('Erro ao salvar', 'erro'); }
+  };
+
+  // ─── FOTO DO BOT ─────────────────────────────────────────────
+  window.clicarFotoBot = () => document.getElementById('input-foto-bot').click();
+
+  window.uploadFotoBot = async (input) => {
+    const file = input.files[0];
+    if (!file) return;
+    toast('Enviando foto...', 'sucesso');
+    try {
+      // Upload via Cloudinary (gratuito)
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'boreschat');
+      formData.append('cloud_name', 'dsjnykx10');
+      const resp = await fetch('https://api.cloudinary.com/v1_1/dsjnykx10/image/upload', { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.secure_url) {
+        await fetch(`${API}/api/bot/${botAtual.token}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ foto: data.secure_url })
+        });
+        toast('Foto atualizada! ✅', 'sucesso');
+        await abrirBot(botAtual.token);
+      }
+    } catch (e) { toast('Erro ao enviar foto', 'erro'); }
+  };
+
+  // ─── PREVIEW FOTO MENU ────────────────────────────────────────
+  window.previewMenuFoto = (url) => {
+    const preview = document.getElementById('menu-foto-preview');
+    if (url && url.startsWith('http')) {
+      preview.innerHTML = `<img src="${url}" onerror="this.parentElement.innerHTML='<div class=menu-foto-placeholder>❌ URL inválida</div>'" style="width:100%;height:100%;object-fit:cover" />`;
+    } else {
+      preview.innerHTML = `<div class="menu-foto-placeholder">📸 Nenhuma foto configurada<br/><small>Cole uma URL abaixo</small></div>`;
+    }
   };
 
   // ─── TOAST ────────────────────────────────────────────────────
