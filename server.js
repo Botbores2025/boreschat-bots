@@ -3,11 +3,36 @@ const express = require('express');
 const cors    = require('cors');
 const admin   = require('firebase-admin');
 const { v4: uuidv4 } = require('uuid');
+const multer  = require('multer');
+const path    = require('path');
+const fs      = require('fs');
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
 app.options('*', cors());
 app.use(express.json());
+
+// ─── PASTA DE UPLOADS LOCAL (ALTERNATIVA B — GRATUITA E ILIMITADA) ───────────
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Serve a pasta /uploads publicamente
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Config do multer — salva com nome único
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename:    (_req, file, cb) => {
+    const ext  = path.extname(file.originalname) || (file.mimetype.includes('audio') ? '.m4a' : '.jpg');
+    const nome = `${Date.now()}_${uuidv4().slice(0, 8)}${ext}`;
+    cb(null, nome);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+});
 
 // ─── FIREBASE ADMIN ──────────────────────────────────────────────────────────
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -22,12 +47,41 @@ function gerarToken() {
   return 'BORES_' + uuidv4().replace(/-/g,'').substring(0,24).toUpperCase();
 }
 
+// Monta a URL pública do arquivo enviado via multer
+function urlPublica(req, filename) {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const host  = req.headers['x-forwarded-host']  || req.get('host');
+  return `${proto}://${host}/uploads/${filename}`;
+}
+
+// ─── ROTA DE UPLOAD DE MÍDIA (substitui Cloudinary) ─────────────────────────
+// POST /api/upload   — campo: "file" (multipart/form-data)
+// Retorna: { url: "https://seuservidor.com/uploads/xxx.jpg" }
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ erro: 'Nenhum arquivo recebido' });
+    const url = urlPublica(req, req.file.filename);
+    res.json({ sucesso: true, url });
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
 // ─── ENVIAR MENSAGEM COMO BOT ─────────────────────────────────────────────────
-async function enviarMensagemBot(grupoId, texto, botDados, botoes = null) {
+// CORREÇÃO: valida que texto não é vazio antes de gravar
+async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
+  // Garante que nunca salvamos balão vazio
+  const textoFinal = (texto || '').trim();
+  if (!textoFinal && !extras.fotoUrl && !extras.botoes) {
+    console.warn('[Bot] Tentativa de enviar mensagem vazia ignorada.');
+    return;
+  }
+
   try {
     const msg = {
-      texto,
-      tipo: botoes ? 'botoes' : 'texto',
+      // tipo dinâmico: foto > botoes > texto
+      tipo: extras.fotoUrl ? 'bot_card' : extras.botoes ? 'botoes' : 'texto',
+      texto: textoFinal,
       enviado_por: `bot_${botDados.token}`,
       nome: botDados.nome || 'BoresBot',
       foto: botDados.foto || '',
@@ -35,8 +89,14 @@ async function enviarMensagemBot(grupoId, texto, botDados, botoes = null) {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       lido: false,
       entregue: true,
+      // Reply — marca a mensagem original do usuário
+      ...(extras.replyTo ? { replyTo: extras.replyTo } : {}),
+      // Cabeçalho de imagem (bot_card)
+      ...(extras.fotoUrl ? { fotoUrl: extras.fotoUrl } : {}),
+      // Botões interativos
+      ...(extras.botoes ? { botoes: extras.botoes } : {}),
     };
-    if (botoes) msg.botoes = botoes;
+
     await db.collection('grupos').doc(grupoId).collection('mensagens').add(msg);
   } catch (e) {
     console.error('Erro ao enviar mensagem bot:', e.message);
@@ -44,12 +104,26 @@ async function enviarMensagemBot(grupoId, texto, botDados, botoes = null) {
 }
 
 // ─── PROCESSAR COMANDO ────────────────────────────────────────────────────────
-async function processarComando(texto, grupoId, autorNome, botDados) {
-  if (!texto || !texto.startsWith('/')) return;
+async function processarComando(msgDoc, grupoId, botDados) {
+  const dado    = msgDoc.data();
+  const texto   = dado.texto || '';
+  const msgId   = msgDoc.id;
+  const autorNome = dado.nome || 'Membro';
+
+  if (!texto.startsWith('/')) return;
 
   const partes  = texto.trim().split(' ');
   const comando = partes[0].toLowerCase();
   const args    = partes.slice(1).join(' ');
+
+  // Objeto de reply que aponta para a mensagem do usuário
+  const replyTo = {
+    id:          msgId,
+    texto:       texto,
+    nome:        autorNome,
+    enviado_por: dado.enviado_por || '',
+    fotoUrl:     null,
+  };
 
   // Recarrega comandos do Firestore sempre (pega atualizações em tempo real)
   let comandosAtuais = {};
@@ -58,17 +132,16 @@ async function processarComando(texto, grupoId, autorNome, botDados) {
     comandosAtuais = botDoc.data()?.comandos || {};
   } catch (e) {}
 
-  // Remove a barra para buscar no mapa
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
 
-  // Comando customizado encontrado
+  // Comando customizado
   if (comandosAtuais[cmdSemBarra]) {
     let resposta = comandosAtuais[cmdSemBarra].resposta;
     resposta = resposta
-      .replace(/{usuario}/g, autorNome || 'Membro')
+      .replace(/{usuario}/g, autorNome)
       .replace(/{grupo}/g, grupoId)
       .replace(/{args}/g, args || '');
-    await enviarMensagemBot(grupoId, resposta, botDados);
+    await enviarMensagemBot(grupoId, resposta, botDados, { replyTo });
     return;
   }
 
@@ -79,29 +152,47 @@ async function processarComando(texto, grupoId, autorNome, botDados) {
       ? keys.map(cmd => `/${cmd} — ${comandosAtuais[cmd].descricao || comandosAtuais[cmd].resposta.substring(0, 30)}`).join('\n')
       : 'Nenhum comando customizado ainda.';
 
-    const texto = `🤖 *${botDados.nome}*\n\n⚡ COMANDOS DISPONÍVEIS:\n\n${lista}\n\n📌 PADRÃO:\n/ajuda — Este menu\n/ping — Testar bot\n/menu — Menu com botões`;
-    await enviarMensagemBot(grupoId, texto, botDados);
+    const textoResp = `🤖 *${botDados.nome}*\n\n⚡ COMANDOS DISPONÍVEIS:\n\n${lista}\n\n📌 PADRÃO:\n/ajuda — Este menu\n/ping — Testar bot\n/menu — Menu com botões`;
+    await enviarMensagemBot(grupoId, textoResp, botDados, { replyTo });
     return;
   }
 
   if (comando === '/ping') {
-    await enviarMensagemBot(grupoId, `🏓 Pong! *${botDados.nome}* está online! ✅`, botDados);
+    await enviarMensagemBot(grupoId, `🏓 Pong! *${botDados.nome}* está online! ✅`, botDados, { replyTo });
     return;
   }
 
   if (comando === '/menu') {
+    // CORREÇÃO: envia bot_card com imagem de cabeçalho, texto e botões
+    // Substitua MENU_HEADER_IMAGE_URL pela URL real da sua imagem de cabeçalho
+    const MENU_HEADER_IMAGE_URL = botDados.menuFoto || botDados.foto || '';
+
+    const textoMenu = `━━━━━━━━━━━━━━━━━━━━\n🤖 *${botDados.nome}*\n━━━━━━━━━━━━━━━━━━━━\n\nOlá, ${autorNome}! 👋\nEscolha uma das opções abaixo:`;
+
     const botoes = [
-      { label: '⚡ Comandos', comando: '/ajuda' },
-      { label: '🏓 Ping', comando: '/ping' },
-      { label: 'ℹ️ Info', comando: '/info' },
+      { label: '⚡ Comandos',   comando: '/ajuda' },
+      { label: '🏓 Ping',       comando: '/ping'  },
+      { label: 'ℹ️ Info',       comando: '/info'  },
     ];
-    await enviarMensagemBot(grupoId, `🤖 *${botDados.nome}* — Olá ${autorNome}! Escolha uma opção:`, botDados, botoes);
+
+    await enviarMensagemBot(
+      grupoId,
+      textoMenu,
+      botDados,
+      {
+        replyTo,
+        // Se não tiver imagem de cabeçalho cadastrada, não passa fotoUrl
+        ...(MENU_HEADER_IMAGE_URL ? { fotoUrl: MENU_HEADER_IMAGE_URL } : {}),
+        botoes,
+      }
+    );
     return;
   }
 
   if (comando === '/info') {
     const keys = Object.keys(comandosAtuais);
-    await enviarMensagemBot(grupoId, `ℹ️ *${botDados.nome}*\n\nComandos configurados: ${keys.length}\nGrupos ativos: ${(botDados.grupos || []).length}\n\nConfigurado em: botbores2025.github.io/boreschat-bots`, botDados);
+    const textoInfo = `ℹ️ *${botDados.nome}*\n\nComandos configurados: ${keys.length}\nGrupos ativos: ${(botDados.grupos || []).length}`;
+    await enviarMensagemBot(grupoId, textoInfo, botDados, { replyTo });
     return;
   }
 }
@@ -123,14 +214,16 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       if (primeiraExecucao) { primeiraExecucao = false; return; }
       if (snap.empty) return;
 
-      const dado = snap.docs[0].data();
+      const docSnap = snap.docs[0];
+      const dado    = docSnap.data();
+
       console.log(`📩 Msg: "${dado.texto}" ehBot:${dado.ehBot}`);
 
       if (dado.ehBot) return;
       if (!dado.texto?.startsWith('/')) return;
 
       console.log(`📨 Comando: ${dado.texto} em ${grupoId}`);
-      await processarComando(dado.texto, grupoId, dado.nome, botDados);
+      await processarComando(docSnap, grupoId, botDados);
     });
 
   listeners[chave] = unsub;
@@ -169,7 +262,7 @@ app.post('/api/bots/criar', async (req, res) => {
     const token = gerarToken();
     await db.collection('bots').doc(token).set({
       token, nome, descricao: descricao || '', donoId,
-      foto: '', comandos: {}, grupos: [], ativo: true,
+      foto: '', menuFoto: '', comandos: {}, grupos: [], ativo: true,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
     res.json({ sucesso: true, token, nome });
@@ -197,11 +290,12 @@ app.get('/api/bot/:token', async (req, res) => {
 // ─── ATUALIZAR BOT ───────────────────────────────────────────────────────────
 app.put('/api/bot/:token', async (req, res) => {
   try {
-    const { nome, descricao, foto } = req.body;
+    const { nome, descricao, foto, menuFoto } = req.body;
     const updates = {};
-    if (nome)      updates.nome      = nome;
+    if (nome)     updates.nome     = nome;
     if (descricao) updates.descricao = descricao;
     if (foto)      updates.foto      = foto;
+    if (menuFoto)  updates.menuFoto  = menuFoto; // URL da imagem de cabeçalho do /menu
     await db.collection('bots').doc(req.params.token).update(updates);
     res.json({ sucesso: true });
   } catch (e) { res.status(500).json({ erro: e.message }); }
@@ -213,7 +307,6 @@ app.post('/api/bot/:token/comando', async (req, res) => {
     const { comando, resposta, descricao } = req.body;
     if (!comando || !resposta) return res.status(400).json({ erro: 'Comando e resposta obrigatórios' });
 
-    // Remove a barra para salvar no Firestore
     const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
 
     const botDoc = await db.collection('bots').doc(req.params.token).get();
@@ -258,7 +351,8 @@ app.post('/api/bot/:token/grupo/:grupoId', async (req, res) => {
     });
 
     await iniciarListenerGrupo(grupoId, botDados);
-    await enviarMensagemBot(grupoId,
+    await enviarMensagemBot(
+      grupoId,
       `🤖 *${botDados.nome}* entrou no grupo!\n\nDigite /ajuda para ver os comandos ou /menu para o menu interativo.`,
       botDados
     );
@@ -302,15 +396,22 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     app: 'BoresChat Bot Server',
-    versao: '1.1.0',
+    versao: '2.0.0',
     listeners: Object.keys(listeners).length,
-    features: ['comandos customizados', 'botoes interativos', '/menu', '/ajuda', '/ping', '/info'],
+    features: [
+      'upload local gratuito (multer)',
+      'reply automático nos comandos',
+      'menu bot_card com imagem + botões',
+      'validação de mensagem vazia',
+      'comandos customizados',
+      '/menu', '/ajuda', '/ping', '/info',
+    ],
   });
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
-  console.log(`🚀 BoresChat Bot Server v1.1.0 rodando na porta ${PORT}`);
+  console.log(`🚀 BoresChat Bot Server v2.0.0 rodando na porta ${PORT}`);
   await carregarBotsAtivos();
 });
