@@ -214,29 +214,31 @@ async function processarComando(msgDoc, grupoId, botDados) {
   }
 
   if (comando === '/limpar') {
-    // Apaga as últimas 50 mensagens do grupo (exceto mensagens do bot)
     try {
-      const snap = await db
-        .collection('grupos').doc(grupoId)
-        .collection('mensagens')
-        .orderBy('timestamp', 'desc')
-        .limit(50)
-        .get();
+      let totalApagadas = 0;
 
-      const batch = db.batch();
-      let count = 0;
-      snap.docs.forEach(doc => {
-        // Não apaga mensagens do próprio bot
-        if (!doc.data().ehBot) {
-          batch.delete(doc.ref);
-          count++;
-        }
-      });
-      await batch.commit();
+      // Apaga TUDO em lotes de 400 (limite seguro do Firestore batch)
+      while (true) {
+        const snap = await db
+          .collection('grupos').doc(grupoId)
+          .collection('mensagens')
+          .limit(400)
+          .get();
+
+        if (snap.empty) break;
+
+        const batch = db.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        totalApagadas += snap.docs.length;
+
+        // Se veio menos de 400 acabou
+        if (snap.docs.length < 400) break;
+      }
 
       await enviarMensagemBot(
         grupoId,
-        `🧹 *Chat limpo!*\n\n${count} mensagem(ns) removida(s) por *${autorNome}*.`,
+        `🧹 *Chat limpo!*\n\n${totalApagadas} mensagem(ns) removida(s) por *${autorNome}*.`,
         botDadosAtual
       );
     } catch (e) {
