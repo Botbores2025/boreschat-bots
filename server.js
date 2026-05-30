@@ -264,6 +264,7 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
   console.log(`🤖 Bot "${botDados.nome}" ouvindo grupo ${grupoId}`);
   let primeiraExecucao = true;
+  let ultimoMsgIdProcessado = null; // evita processar a mesma mensagem 2x
 
   const unsub = db
     .collection('grupos').doc(grupoId)
@@ -276,13 +277,19 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
       const docSnap = snap.docs[0];
       const dado    = docSnap.data();
+      const msgId   = docSnap.id;
 
-      console.log(`📩 Msg: "${dado.texto}" ehBot:${dado.ehBot}`);
+      // Ignora se já processou essa mensagem
+      if (msgId === ultimoMsgIdProcessado) return;
 
+      // Ignora mensagens do bot
       if (dado.ehBot) return;
       if (!dado.texto?.startsWith('/')) return;
 
-      console.log(`📨 Comando: ${dado.texto} em ${grupoId}`);
+      // Marca como processada ANTES de executar (evita duplo disparo)
+      ultimoMsgIdProcessado = msgId;
+
+      console.log(`📨 Comando: ${dado.texto} em ${grupoId} id:${msgId}`);
       await processarComando(docSnap, grupoId, botDados);
     });
 
