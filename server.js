@@ -39,9 +39,13 @@ async function processarComando(texto, grupoId, autorNome, botDados) {
 
   const comandos = botDados.comandos || {};
 
+  // Busca com e sem barra (Firestore salva sem barra)
+  const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
+
   // Comando encontrado nas configurações do bot
-  if (comandos[comando]) {
-    let resposta = comandos[comando].resposta;
+  if (comandos[comando] || comandos[cmdSemBarra]) {
+    const cmdData = comandos[comando] || comandos[cmdSemBarra];
+    let resposta = cmdData.resposta;
     // Substitui variáveis
     resposta = resposta
       .replace('{usuario}', autorNome || 'Membro')
@@ -51,6 +55,22 @@ async function processarComando(texto, grupoId, autorNome, botDados) {
     await enviarMensagemBot(grupoId, resposta, botDados);
     return;
   }
+
+  // Recarrega bot do Firestore para pegar comandos atualizados
+  try {
+    const botAtual = await db.collection('bots').doc(botDados.token).get();
+    const dadosAtuais = botAtual.data();
+    const comandosAtuais = dadosAtuais?.comandos || {};
+    if (comandosAtuais[cmdSemBarra]) {
+      let resposta = comandosAtuais[cmdSemBarra].resposta;
+      resposta = resposta
+        .replace('{usuario}', autorNome || 'Membro')
+        .replace('{grupo}', grupoId)
+        .replace('{args}', args || '');
+      await enviarMensagemBot(grupoId, resposta, botDados);
+      return;
+    }
+  } catch(e) {}
 
   // Comandos padrão do sistema
   if (comando === '/ajuda' || comando === '/help') {
@@ -219,13 +239,20 @@ app.post('/api/bot/:token/comando', async (req, res) => {
     const { comando, resposta, descricao } = req.body;
     if (!comando || !resposta) return res.status(400).json({ erro: 'Comando e resposta obrigatórios' });
 
-    const cmd = comando.startsWith('/') ? comando.toLowerCase() : `/${comando.toLowerCase()}`;
+    // Remove a barra para salvar no Firestore (não aceita / em chaves)
+    const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
+    const cmdComBarra = `/${cmdSemBarra}`;
+
+    // Busca comandos atuais e adiciona o novo
+    const botDoc = await db.collection('bots').doc(req.params.token).get();
+    const comandosAtuais = botDoc.data()?.comandos || {};
+    comandosAtuais[cmdSemBarra] = { resposta, descricao: descricao || '' };
 
     await db.collection('bots').doc(req.params.token).update({
-      [`comandos.${cmd}`]: { resposta, descricao: descricao || '' }
+      comandos: comandosAtuais
     });
 
-    res.json({ sucesso: true, comando: cmd });
+    res.json({ sucesso: true, comando: cmdComBarra });
   } catch (e) {
     res.status(500).json({ erro: e.message });
   }
@@ -234,10 +261,11 @@ app.post('/api/bot/:token/comando', async (req, res) => {
 // ─── REMOVER COMANDO ──────────────────────────────────────────────────────
 app.delete('/api/bot/:token/comando/:cmd', async (req, res) => {
   try {
-    const cmd = req.params.cmd.startsWith('/') ? req.params.cmd : `/${req.params.cmd}`;
-    await db.collection('bots').doc(req.params.token).update({
-      [`comandos.${cmd}`]: admin.firestore.FieldValue.delete()
-    });
+    const cmdSemBarra = req.params.cmd.replace(/^\//, '').toLowerCase();
+    const botDoc2 = await db.collection('bots').doc(req.params.token).get();
+    const cmdsAtuais = botDoc2.data()?.comandos || {};
+    delete cmdsAtuais[cmdSemBarra];
+    await db.collection('bots').doc(req.params.token).update({ comandos: cmdsAtuais });
     res.json({ sucesso: true });
   } catch (e) {
     res.status(500).json({ erro: e.message });

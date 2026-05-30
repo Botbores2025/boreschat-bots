@@ -477,7 +477,7 @@
     }
     lista.innerHTML = keys.map(cmd => `
       <div class="comando-item">
-        <span class="comando-nome">${cmd}</span>
+        <span class="comando-nome">/${cmd}</span>
         <span class="comando-resp">${comandos[cmd].resposta}</span>
         <button class="btn-delete" onclick="removerComando('${cmd}')">✕</button>
       </div>`).join('');
@@ -502,17 +502,33 @@
     const desc = document.getElementById('cmd-desc').value.trim();
     if (!cmd || !resp) { toast('Preencha o comando e a resposta', 'erro'); return; }
     try {
-      await fetch(`${API}/api/bot/${botAtual.token}/comando`, {
+      const r = await fetch(`${API}/api/bot/${botAtual.token}/comando`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ comando: cmd, resposta: resp, descricao: desc })
       });
-      document.getElementById('cmd-nome').value = '';
-      document.getElementById('cmd-resp').value = '';
-      document.getElementById('cmd-desc').value = '';
-      toast(`Comando ${cmd} adicionado!`, 'sucesso');
-      await abrirBot(botAtual.token);
-    } catch (e) { toast('Erro ao adicionar comando', 'erro'); }
+      const data = await r.json();
+      console.log('Resposta adicionar comando:', data);
+
+      if (data.sucesso) {
+        // Atualiza localmente sem precisar de novo fetch
+        if (!botAtual.comandos) botAtual.comandos = {};
+        // Salva sem barra (igual ao servidor)
+        const cmdFinal = cmd.replace(/^\//, '').toLowerCase();
+        botAtual.comandos[cmdFinal] = { resposta: resp, descricao: desc };
+        renderComandos(botAtual.comandos);
+
+        document.getElementById('cmd-nome').value = '';
+        document.getElementById('cmd-resp').value = '';
+        document.getElementById('cmd-desc').value = '';
+        toast(`Comando /${cmdFinal} adicionado! ✅`, 'sucesso');
+      } else {
+        toast('Erro ao salvar comando', 'erro');
+      }
+    } catch (e) { 
+      console.error('Erro:', e);
+      toast('Erro ao adicionar comando', 'erro'); 
+    }
   };
 
   window.removerComando = async (cmd) => {
