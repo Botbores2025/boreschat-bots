@@ -104,11 +104,15 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       if (primeiraExecucao) { primeiraExecucao = false; return; }
       if (snap.empty) return;
 
-      const doc  = snap.docs[0];
-      const dado = doc.data();
+      const docSnap = snap.docs[0];
+      const dado = docSnap.data();
+
+      console.log(`📩 Mensagem detectada: "${dado.texto}" de ${dado.nome} ehBot:${dado.ehBot}`);
 
       // Ignora mensagens do próprio bot
       if (dado.ehBot) return;
+
+      // Verifica se começa com /
       if (!dado.texto?.startsWith('/')) return;
 
       console.log(`📨 Comando recebido: ${dado.texto} em ${grupoId}`);
@@ -259,8 +263,12 @@ app.post('/api/bot/:token/grupo/:grupoId', async (req, res) => {
       bots: admin.firestore.FieldValue.arrayUnion(token)
     });
 
-    // Inicia o listener
-    await iniciarListenerGrupo(grupoId, botDados);
+    // Recarrega dados do bot para pegar comandos atualizados
+    const botDocAtual = await db.collection('bots').doc(token).get();
+    const botDadosAtual = botDocAtual.data();
+
+    // Inicia o listener com dados atualizados
+    await iniciarListenerGrupo(grupoId, botDadosAtual);
 
     // Bot envia mensagem de boas-vindas
     await enviarMensagemBot(grupoId, `🤖 *${botDados.nome}* foi adicionado ao grupo!\n\nDigite /ajuda para ver os comandos disponíveis.`, botDados);
