@@ -42,6 +42,22 @@ const db = admin.firestore();
 // ─── LISTENERS ATIVOS ────────────────────────────────────────────────────────
 const listeners = {};
 
+// ─── UPTIME DO SERVIDOR ───────────────────────────────────────────────────────
+const SERVER_START = Date.now();
+
+function getUptime() {
+  const ms      = Date.now() - SERVER_START;
+  const total   = Math.floor(ms / 1000);
+  const h       = Math.floor(total / 3600);
+  const m       = Math.floor((total % 3600) / 60);
+  const s       = total % 60;
+  const partes  = [];
+  if (h > 0) partes.push(`${h}h`);
+  if (m > 0) partes.push(`${m}m`);
+  partes.push(`${s}s`);
+  return partes.join(' ');
+}
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function gerarToken() {
   return 'BORES_' + uuidv4().replace(/-/g,'').substring(0,24).toUpperCase();
@@ -68,9 +84,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 // ─── ENVIAR MENSAGEM COMO BOT ─────────────────────────────────────────────────
-// CORREÇÃO: valida que texto não é vazio antes de gravar
 async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
-  // Garante que nunca salvamos balão vazio
   const textoFinal = (texto || '').trim();
   if (!textoFinal && !extras.fotoUrl && !extras.botoes) {
     console.warn('[Bot] Tentativa de enviar mensagem vazia ignorada.');
@@ -79,7 +93,6 @@ async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
 
   try {
     const msg = {
-      // tipo dinâmico: foto > botoes > texto
       tipo: extras.fotoUrl ? 'bot_card' : extras.botoes ? 'botoes' : 'texto',
       texto: textoFinal,
       enviado_por: `bot_${botDados.token}`,
@@ -89,12 +102,9 @@ async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       lido: false,
       entregue: true,
-      // Reply — marca a mensagem original do usuário
       ...(extras.replyTo ? { replyTo: extras.replyTo } : {}),
-      // Cabeçalho de imagem (bot_card)
       ...(extras.fotoUrl ? { fotoUrl: extras.fotoUrl } : {}),
-      // Botões interativos
-      ...(extras.botoes ? { botoes: extras.botoes } : {}),
+      ...(extras.botoes  ? { botoes:  extras.botoes  } : {}),
     };
 
     await db.collection('grupos').doc(grupoId).collection('mensagens').add(msg);
@@ -105,9 +115,9 @@ async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
 
 // ─── PROCESSAR COMANDO ────────────────────────────────────────────────────────
 async function processarComando(msgDoc, grupoId, botDados) {
-  const dado    = msgDoc.data();
-  const texto   = dado.texto || '';
-  const msgId   = msgDoc.id;
+  const dado      = msgDoc.data();
+  const texto     = dado.texto || '';
+  const msgId     = msgDoc.id;
   const autorNome = dado.nome || 'Membro';
 
   if (!texto.startsWith('/')) return;
@@ -116,7 +126,6 @@ async function processarComando(msgDoc, grupoId, botDados) {
   const comando = partes[0].toLowerCase();
   const args    = partes.slice(1).join(' ');
 
-  // Objeto de reply que aponta para a mensagem do usuário
   const replyTo = {
     id:          msgId,
     texto:       texto,
@@ -125,10 +134,9 @@ async function processarComando(msgDoc, grupoId, botDados) {
     fotoUrl:     null,
   };
 
-  // Recarrega comandos do Firestore sempre (pega atualizações em tempo real)
-  let comandosAtuais = {};
-  // ─── BUG FIX: recarrega TODOS os dados do bot, não só comandos ───────────
+  // Recarrega TODOS os dados do bot do Firestore (pega menuFoto, nome, etc atualizados)
   let botDadosAtual = botDados;
+  let comandosAtuais = {};
   try {
     const botDoc = await db.collection('bots').doc(botDados.token).get();
     if (botDoc.exists) {
@@ -139,7 +147,7 @@ async function processarComando(msgDoc, grupoId, botDados) {
 
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
 
-  // Comando customizado
+  // ─── COMANDO CUSTOMIZADO ─────────────────────────────────────────────────
   if (comandosAtuais[cmdSemBarra]) {
     let resposta = comandosAtuais[cmdSemBarra].resposta;
     resposta = resposta
@@ -151,33 +159,34 @@ async function processarComando(msgDoc, grupoId, botDados) {
   }
 
   // ─── COMANDOS PADRÃO ─────────────────────────────────────────────────────
-  if (comando === '/ajuda' || comando === '/help') {
-    const keys = Object.keys(comandosAtuais);
-    const lista = keys.length > 0
-      ? keys.map(cmd => `/${cmd} — ${comandosAtuais[cmd].descricao || comandosAtuais[cmd].resposta.substring(0, 30)}`).join('\n')
-      : 'Nenhum comando customizado ainda.';
-
-    const textoResp = `🤖 *${botDadosAtual.nome}*\n\n⚡ COMANDOS DISPONÍVEIS:\n\n${lista}\n\n📌 PADRÃO:\n/ajuda — Este menu\n/ping — Testar bot\n/menu — Menu com botões`;
-    await enviarMensagemBot(grupoId, textoResp, botDadosAtual, { replyTo });
-    return;
-  }
 
   if (comando === '/ping') {
-    await enviarMensagemBot(grupoId, `🏓 Pong! *${botDadosAtual.nome}* está online! ✅`, botDadosAtual, { replyTo });
+    const inicio = Date.now();
+    // Faz um round-trip no Firestore para medir latência real
+    await db.collection('bots').doc(botDados.token).get();
+    const ms = Date.now() - inicio;
+    const uptime = getUptime();
+
+    const texto = `🤖 *${botDadosAtual.nome}*\n\n🏓 *Pong!*\n📶 Velocidade de resposta: *${ms}ms*\n⏱️ Uptime: *${uptime}*`;
+    await enviarMensagemBot(grupoId, texto, botDadosAtual, { replyTo });
     return;
   }
 
   if (comando === '/menu') {
-    // ─── BUG FIX: usa botDadosAtual (recarregado do Firestore) ──────────────
     const MENU_HEADER_IMAGE_URL = botDadosAtual.menuFoto || botDadosAtual.foto || '';
     console.log(`🖼️ /menu menuFoto="${MENU_HEADER_IMAGE_URL}"`);
 
-    const textoMenu = `━━━━━━━━━━━━━━━━━━━━\n🤖 *${botDadosAtual.nome}*\n━━━━━━━━━━━━━━━━━━━━\n\nOlá, ${autorNome}! 👋\nEscolha uma das opções abaixo:`;
+    const keys        = Object.keys(comandosAtuais);
+    const listaComandos = keys.length > 0
+      ? keys.map(cmd => `• /${cmd} — ${comandosAtuais[cmd].descricao || comandosAtuais[cmd].resposta.substring(0, 25)}`).join('\n')
+      : '• Nenhum comando criado ainda';
+
+    const textoMenu = `╔══════════════════╗\n🤖  *${botDadosAtual.nome}*\n╚══════════════════╝\n\nOlá, *${autorNome}*! 👋\n\n📋 *COMANDOS DISPONÍVEIS:*\n${listaComandos}\n\n👇 Escolha uma opção:`;
 
     const botoes = [
-      { label: '⚡ Comandos',   comando: '/ajuda' },
-      { label: '🏓 Ping',       comando: '/ping'  },
-      { label: 'ℹ️ Info',       comando: '/info'  },
+      { label: '🏓 Ping & Status', comando: '/ping'   },
+      { label: '🧹 Limpar Chat',   comando: '/limpar'  },
+      { label: '⚡ Comandos',       comando: '/cmds'    },
     ];
 
     await enviarMensagemBot(
@@ -186,7 +195,6 @@ async function processarComando(msgDoc, grupoId, botDados) {
       botDadosAtual,
       {
         replyTo,
-        // Se não tiver imagem de cabeçalho cadastrada, não passa fotoUrl
         ...(MENU_HEADER_IMAGE_URL ? { fotoUrl: MENU_HEADER_IMAGE_URL } : {}),
         botoes,
       }
@@ -194,9 +202,54 @@ async function processarComando(msgDoc, grupoId, botDados) {
     return;
   }
 
-  if (comando === '/info') {
+  if (comando === '/cmds') {
     const keys = Object.keys(comandosAtuais);
-    const textoInfo = `ℹ️ *${botDadosAtual.nome}*\n\nComandos configurados: ${keys.length}\nGrupos ativos: ${(botDadosAtual.grupos || []).length}`;
+    const lista = keys.length > 0
+      ? keys.map(cmd => `• /${cmd} — ${comandosAtuais[cmd].descricao || comandosAtuais[cmd].resposta.substring(0, 30)}`).join('\n')
+      : 'Nenhum comando criado ainda.\n\nAcesse o painel web para adicionar!';
+
+    const textoResp = `📋 *${botDadosAtual.nome}* — Comandos\n\n${lista}\n\n📌 *Padrão:*\n• /ping — Status do bot\n• /menu — Menu interativo\n• /cmds — Lista de comandos\n• /limpar — Limpar chat\n• /info — Informações`;
+    await enviarMensagemBot(grupoId, textoResp, botDadosAtual, { replyTo });
+    return;
+  }
+
+  if (comando === '/limpar') {
+    // Apaga as últimas 50 mensagens do grupo (exceto mensagens do bot)
+    try {
+      const snap = await db
+        .collection('grupos').doc(grupoId)
+        .collection('mensagens')
+        .orderBy('timestamp', 'desc')
+        .limit(50)
+        .get();
+
+      const batch = db.batch();
+      let count = 0;
+      snap.docs.forEach(doc => {
+        // Não apaga mensagens do próprio bot
+        if (!doc.data().ehBot) {
+          batch.delete(doc.ref);
+          count++;
+        }
+      });
+      await batch.commit();
+
+      await enviarMensagemBot(
+        grupoId,
+        `🧹 *Chat limpo!*\n\n${count} mensagem(ns) removida(s) por *${autorNome}*.`,
+        botDadosAtual
+      );
+    } catch (e) {
+      console.error('Erro ao limpar chat:', e.message);
+      await enviarMensagemBot(grupoId, '❌ Erro ao limpar o chat.', botDadosAtual, { replyTo });
+    }
+    return;
+  }
+
+  if (comando === '/info') {
+    const keys   = Object.keys(comandosAtuais);
+    const uptime = getUptime();
+    const textoInfo = `ℹ️ *${botDadosAtual.nome}*\n\n📋 Comandos: *${keys.length}*\n👥 Grupos: *${(botDadosAtual.grupos || []).length}*\n⏱️ Uptime: *${uptime}*`;
     await enviarMensagemBot(grupoId, textoInfo, botDadosAtual, { replyTo });
     return;
   }
@@ -300,7 +353,7 @@ app.put('/api/bot/:token', async (req, res) => {
     if (nome)     updates.nome     = nome;
     if (descricao) updates.descricao = descricao;
     if (foto)      updates.foto      = foto;
-    if (menuFoto)  updates.menuFoto  = menuFoto; // URL da imagem de cabeçalho do /menu
+    if (menuFoto)  updates.menuFoto  = menuFoto;
     await db.collection('bots').doc(req.params.token).update(updates);
     res.json({ sucesso: true });
   } catch (e) { res.status(500).json({ erro: e.message }); }
@@ -358,7 +411,7 @@ app.post('/api/bot/:token/grupo/:grupoId', async (req, res) => {
     await iniciarListenerGrupo(grupoId, botDados);
     await enviarMensagemBot(
       grupoId,
-      `🤖 *${botDados.nome}* entrou no grupo!\n\nDigite /ajuda para ver os comandos ou /menu para o menu interativo.`,
+      `🤖 *${botDados.nome}* entrou no grupo!\n\nDigite /menu para o menu interativo.`,
       botDados
     );
 
@@ -401,15 +454,16 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     app: 'BoresChat Bot Server',
-    versao: '2.0.0',
+    versao: '2.1.0',
     listeners: Object.keys(listeners).length,
+    uptime: getUptime(),
     features: [
       'upload local gratuito (multer)',
       'reply automático nos comandos',
       'menu bot_card com imagem + botões',
       'validação de mensagem vazia',
       'comandos customizados',
-      '/menu', '/ajuda', '/ping', '/info',
+      '/menu', '/cmds', '/ping', '/info', '/limpar',
     ],
   });
 });
@@ -417,6 +471,6 @@ app.get('/', (req, res) => {
 // ─── START ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
-  console.log(`🚀 BoresChat Bot Server v2.0.0 rodando na porta ${PORT}`);
+  console.log(`🚀 BoresChat Bot Server v2.1.0 rodando na porta ${PORT}`);
   await carregarBotsAtivos();
 });
