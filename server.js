@@ -255,6 +255,9 @@ async function processarComando(msgDoc, grupoId, botDados) {
     case '/ia':
       await usuario.gemini(ctx);
       break;
+    case '/clima':
+      await usuario.clima(ctx);
+      break;
 
     // ── SISTEMA ───────────────────────────────────────────────────────────────
     case '/perfil': {
