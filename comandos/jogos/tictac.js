@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════
 // JOGOS/TICTAC.JS — Jogo da Velha com imagem PNG
-// Uso: /velha @nome  /velha 1-9 (para jogar)
+// Uso: /velha @nome  /velha 1-9
 // ═══════════════════════════════════════
 
 const { createCanvas } = require('canvas');
@@ -9,130 +9,141 @@ const path = require('path');
 
 const partidas = {};
 
-// ─── GERA IMAGEM PNG DO TABULEIRO ────────────────────────────────────────────
+const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : 'https://boreschat-bots-production.up.railway.app';
+
+// ─── GERA IMAGEM PNG ─────────────────────────────────────────────────────────
 function gerarImagem(tabuleiro, vezNome, vezSimbolo, fimJogo = null) {
-  const SIZE    = 540;
-  const CELL    = 160;
-  const PADDING = 30;
-  const canvas  = createCanvas(SIZE, SIZE + 80);
-  const ctx     = canvas.getContext('2d');
+  const W      = 540;
+  const H      = 620;
+  const CELL   = 160;
+  const startX = (W - CELL * 3) / 2;  // 30
+  const startY = 40;
 
-  // Fundo
-  ctx.fillStyle = '#111111';
-  ctx.fillRect(0, 0, SIZE, SIZE + 80);
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
 
-  // Título
-  ctx.fillStyle = '#FF6B00';
-  ctx.font      = 'bold 22px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('❌ JOGO DA VELHA ⭕', SIZE / 2, 36);
+  // ── Fundo ──────────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
 
-  // Grade
-  ctx.strokeStyle = '#333333';
+  // ── Borda laranja no tabuleiro ─────────────────────────────────────────────
+  ctx.strokeStyle = '#FF6B00';
   ctx.lineWidth   = 3;
-  const startX = (SIZE - CELL * 3) / 2;
-  const startY = 60;
+  ctx.strokeRect(startX - 2, startY - 2, CELL * 3 + 4, CELL * 3 + 4);
 
-  // Linhas verticais
+  // ── Grade interna ──────────────────────────────────────────────────────────
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth   = 4;
   for (let i = 1; i < 3; i++) {
+    // Vertical
     ctx.beginPath();
     ctx.moveTo(startX + i * CELL, startY);
     ctx.lineTo(startX + i * CELL, startY + CELL * 3);
     ctx.stroke();
-  }
-  // Linhas horizontais
-  for (let i = 1; i < 3; i++) {
+    // Horizontal
     ctx.beginPath();
     ctx.moveTo(startX, startY + i * CELL);
     ctx.lineTo(startX + CELL * 3, startY + i * CELL);
     ctx.stroke();
   }
 
-  // Símbolos
+  // ── Peças ──────────────────────────────────────────────────────────────────
   for (let i = 0; i < 9; i++) {
-    const col  = i % 3;
-    const row  = Math.floor(i / 3);
-    const cx   = startX + col * CELL + CELL / 2;
-    const cy   = startY + row * CELL + CELL / 2;
-    const sym  = tabuleiro[i];
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const cx  = startX + col * CELL + CELL / 2;
+    const cy  = startY + row * CELL + CELL / 2;
+    const sym = tabuleiro[i];
 
     if (sym === 'X') {
-      // Desenha X laranja
+      // X laranja com linhas arredondadas
       ctx.strokeStyle = '#FF6B00';
-      ctx.lineWidth   = 14;
+      ctx.lineWidth   = 16;
       ctx.lineCap     = 'round';
-      const off = 44;
-      ctx.beginPath();
-      ctx.moveTo(cx - off, cy - off);
-      ctx.lineTo(cx + off, cy + off);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx + off, cy - off);
-      ctx.lineTo(cx - off, cy + off);
-      ctx.stroke();
+      const off = 46;
+      ctx.beginPath(); ctx.moveTo(cx-off, cy-off); ctx.lineTo(cx+off, cy+off); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx+off, cy-off); ctx.lineTo(cx-off, cy+off); ctx.stroke();
     } else if (sym === 'O') {
-      // Desenha O azul
+      // O azul
       ctx.strokeStyle = '#3B82F6';
-      ctx.lineWidth   = 14;
+      ctx.lineWidth   = 16;
+      ctx.lineCap     = 'butt';
       ctx.beginPath();
-      ctx.arc(cx, cy, 46, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 48, 0, Math.PI * 2);
       ctx.stroke();
     } else {
       // Número da posição
-      ctx.fillStyle = '#333';
-      ctx.font      = 'bold 28px sans-serif';
-      ctx.textAlign = 'center';
+      ctx.fillStyle    = '#333';
+      ctx.font         = 'bold 32px Arial';
+      ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), cx, cy);
     }
   }
 
-  // Rodapé
-  ctx.textBaseline = 'alphabetic';
-  ctx.font      = 'bold 18px sans-serif';
-  ctx.textAlign = 'center';
+  // ── Rodapé ─────────────────────────────────────────────────────────────────
+  const rodapeY = startY + CELL * 3 + 30;
+
+  // Linha divisória
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(20, rodapeY - 10);
+  ctx.lineTo(W - 20, rodapeY - 10);
+  ctx.stroke();
+
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
 
   if (fimJogo) {
-    ctx.fillStyle = fimJogo === 'empate' ? '#FFC107' : '#22C55E';
-    ctx.fillText(fimJogo === 'empate' ? '🤝 EMPATE!' : `🏆 ${fimJogo} VENCEU!`, SIZE / 2, SIZE + 52);
+    if (fimJogo === 'empate') {
+      ctx.fillStyle = '#FFC107';
+      ctx.font      = 'bold 28px Arial';
+      ctx.fillText('EMPATE!', W / 2, rodapeY + 20);
+    } else {
+      ctx.fillStyle = '#22C55E';
+      ctx.font      = 'bold 26px Arial';
+      // Limita nome a 20 chars para não quebrar
+      const nome = fimJogo.substring(0, 20);
+      ctx.fillText(`${nome} VENCEU!`, W / 2, rodapeY + 20);
+    }
   } else {
-    ctx.fillStyle = vezSimbolo === 'X' ? '#FF6B00' : '#3B82F6';
-    ctx.fillText(`Vez de ${vezNome} (${vezSimbolo})`, SIZE / 2, SIZE + 52);
+    // Indicador de vez com quadrado colorido
+    const corVez = vezSimbolo === 'X' ? '#FF6B00' : '#3B82F6';
+    ctx.fillStyle = corVez;
+    ctx.fillRect(W / 2 - 110, rodapeY + 6, 18, 18);
+
+    ctx.fillStyle    = '#fff';
+    ctx.font         = 'bold 20px Arial';
+    ctx.textAlign    = 'left';
+    const nomeExibir = (vezNome || '').substring(0, 18);
+    ctx.fillText(`Vez de ${nomeExibir} (${vezSimbolo})`, W / 2 - 86, rodapeY + 16);
   }
 
-  // Salva imagem temporária
-  const nomeArq = `velha_${Date.now()}.png`;
-  const dirPath  = path.join(__dirname, '../../uploads');
-  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
-  const filePath = path.join(dirPath, nomeArq);
-  const buffer   = canvas.toBuffer('image/png');
-  fs.writeFileSync(filePath, buffer);
+  // Salva
+  const nomeArq  = `velha_${Date.now()}.png`;
+  const filePath = path.join(__dirname, '../../uploads', nomeArq);
+  fs.writeFileSync(filePath, canvas.toBuffer('image/png'));
   return nomeArq;
 }
 
-function novoTabuleiro() {
-  return ['1','2','3','4','5','6','7','8','9'];
-}
+function novoTabuleiro() { return ['1','2','3','4','5','6','7','8','9']; }
 
 function verificarVencedor(tab) {
   const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   for (const [a,b,c] of wins) {
-    if (tab[a] === tab[b] && tab[b] === tab[c] && (tab[a]==='X'||tab[a]==='O')) return tab[a];
+    if (tab[a]===tab[b] && tab[b]===tab[c] && (tab[a]==='X'||tab[a]==='O')) return tab[a];
   }
   if (tab.every(c => c==='X'||c==='O')) return 'empate';
   return null;
 }
 
-function getUrlBase(req) {
-  // Tenta montar URL pública do Railway
-  const proto = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https' : 'http';
-  const host  = process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost:3000';
-  return `${proto}://${host}`;
-}
-
+// ─── INICIAR PARTIDA ─────────────────────────────────────────────────────────
 async function iniciarPartida({ grupoId, args, autorNome, autorId, botDados, replyTo, enviarMensagemBot, db }) {
   if (!args) {
-    await enviarMensagemBot(grupoId, '⚠️ Use: /velha @nome para desafiar alguém!\nEx: /velha @João', botDados, { replyTo });
+    await enviarMensagemBot(grupoId, '⚠️ Use: /velha @nome\nEx: /velha @Joao', botDados, { replyTo });
     return;
   }
 
@@ -151,30 +162,27 @@ async function iniciarPartida({ grupoId, args, autorNome, autorId, botDados, rep
   }
 
   if (!oponente) {
-    await enviarMensagemBot(grupoId, `❌ Usuário *${args}* não encontrado no grupo.`, botDados, { replyTo });
+    await enviarMensagemBot(grupoId, `❌ Usuario "${args}" nao encontrado.`, botDados, { replyTo });
     return;
   }
 
-  const tabuleiro = novoTabuleiro();
+  const tab = novoTabuleiro();
   partidas[grupoId] = {
-    tabuleiro,
-    vezDe: autorId,
-    jogadores: { X: autorId, O: oponente.uid },
-    nomes: { [autorId]: autorNome, [oponente.uid]: oponente.nome },
+    tabuleiro:  tab,
+    vezDe:      autorId,
+    jogadores:  { X: autorId, O: oponente.uid },
+    nomes:      { [autorId]: autorNome, [oponente.uid]: oponente.nome },
   };
 
-  const nomeArq = gerarImagem(tabuleiro, autorNome, 'X');
-  const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : `https://boreschat-bots-production.up.railway.app`;
-
+  const nomeArq = gerarImagem(tab, autorNome, 'X');
   await enviarMensagemBot(grupoId,
-    `❌⭕ *${autorNome}* (X) desafiou *${oponente.nome}* (O)!\n\nDigite /velha [1-9] para jogar!`,
+    `${autorNome} (X) vs ${oponente.nome} (O)\nDigite /velha [1-9] para jogar!`,
     botDados,
-    { replyTo, fotoUrl: `${baseUrl}/uploads/${nomeArq}` }
+    { replyTo, fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
   );
 }
 
+// ─── JOGAR ───────────────────────────────────────────────────────────────────
 async function jogar({ grupoId, args, autorId, autorNome, botDados, replyTo, enviarMensagemBot }) {
   const partida = partidas[grupoId];
   if (!partida) return false;
@@ -183,13 +191,14 @@ async function jogar({ grupoId, args, autorId, autorNome, botDados, replyTo, env
   if (isNaN(pos) || pos < 1 || pos > 9) return false;
 
   if (partida.vezDe !== autorId) {
-    await enviarMensagemBot(grupoId, `⚠️ Não é sua vez! Aguarde *${partida.nomes[partida.vezDe]}* jogar.`, botDados, { replyTo });
+    const nomeVez = partida.nomes[partida.vezDe];
+    await enviarMensagemBot(grupoId, `Nao e sua vez! Aguarde ${nomeVez} jogar.`, botDados, { replyTo });
     return true;
   }
 
   const idx = pos - 1;
   if (partida.tabuleiro[idx]==='X'||partida.tabuleiro[idx]==='O') {
-    await enviarMensagemBot(grupoId, '⚠️ Posição já ocupada! Escolha outra (1-9).', botDados, { replyTo });
+    await enviarMensagemBot(grupoId, 'Posicao ja ocupada! Escolha outra (1-9).', botDados, { replyTo });
     return true;
   }
 
@@ -197,17 +206,14 @@ async function jogar({ grupoId, args, autorId, autorNome, botDados, replyTo, env
   partida.tabuleiro[idx] = simbolo;
 
   const resultado = verificarVencedor(partida.tabuleiro);
-  const baseUrl   = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : `https://boreschat-bots-production.up.railway.app`;
 
   if (resultado === 'empate') {
     const nomeArq = gerarImagem(partida.tabuleiro, '', '', 'empate');
     delete partidas[grupoId];
     await enviarMensagemBot(grupoId,
-      `🤝 *EMPATE!* Boa partida!\n\nUse /velha @nome para jogar de novo.`,
+      'Empate! Boa partida!\nUse /velha @nome para jogar de novo.',
       botDados,
-      { fotoUrl: `${baseUrl}/uploads/${nomeArq}` }
+      { fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
     );
     return true;
   }
@@ -217,24 +223,23 @@ async function jogar({ grupoId, args, autorId, autorNome, botDados, replyTo, env
     const nomeArq = gerarImagem(partida.tabuleiro, '', '', vencedorNome);
     delete partidas[grupoId];
     await enviarMensagemBot(grupoId,
-      `🏆 *${vencedorNome} VENCEU!* 🎉\n\nUse /velha @nome para jogar de novo.`,
+      `${vencedorNome} VENCEU!\nUse /velha @nome para jogar de novo.`,
       botDados,
-      { fotoUrl: `${baseUrl}/uploads/${nomeArq}` }
+      { fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
     );
     return true;
   }
 
-  // Troca a vez
-  const proximo      = partida.jogadores.X === autorId ? partida.jogadores.O : partida.jogadores.X;
-  partida.vezDe      = proximo;
-  const proximoNome  = partida.nomes[proximo];
-  const proximoSimb  = partida.jogadores.X === proximo ? 'X' : 'O';
-  const nomeArq      = gerarImagem(partida.tabuleiro, proximoNome, proximoSimb);
+  const proximo     = partida.jogadores.X === autorId ? partida.jogadores.O : partida.jogadores.X;
+  partida.vezDe     = proximo;
+  const proximoNome = partida.nomes[proximo];
+  const proximoSimb = partida.jogadores.X === proximo ? 'X' : 'O';
+  const nomeArq     = gerarImagem(partida.tabuleiro, proximoNome, proximoSimb);
 
   await enviarMensagemBot(grupoId,
-    `🎯 Vez de *${proximoNome}* (${proximoSimb === 'X' ? '❌' : '⭕'})\nDigite /velha [1-9]`,
+    `Vez de ${proximoNome} (${proximoSimb})\nDigite /velha [1-9]`,
     botDados,
-    { fotoUrl: `${baseUrl}/uploads/${nomeArq}` }
+    { fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
   );
   return true;
 }
