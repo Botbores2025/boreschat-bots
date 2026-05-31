@@ -140,12 +140,15 @@ async function processarComando(msgDoc, grupoId, botDados) {
   // Recarrega TODOS os dados do bot do Firestore (pega menuFoto, nome, etc atualizados)
   let botDadosAtual = botDados;
   let comandosAtuais = {};
+  let nomeGrupo = grupoId;
   try {
-    const botDoc = await db.collection('bots').doc(botDados.token).get();
+    const botDoc   = await db.collection('bots').doc(botDados.token).get();
+    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
     if (botDoc.exists) {
       botDadosAtual = { ...botDados, ...botDoc.data() };
       comandosAtuais = botDadosAtual.comandos || {};
     }
+    if (grupoDoc.exists) nomeGrupo = grupoDoc.data().nome || grupoId;
   } catch (e) {}
 
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
@@ -263,11 +266,11 @@ Escolha um jogo ou digite o comando!`,
     return;
   }
   if (comando === '/quiz') {
-    await jogos.quiz.iniciarQuiz({ grupoId, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    await jogos.quiz.iniciarQuiz({ grupoId, autorNome, autorId: dado.enviado_por, nomeGrupo, botDados: botDadosAtual, replyTo, enviarMensagemBot });
     return;
   }
   if (comando === '/placar') {
-    await jogos.quiz.mostrarPlacar({ grupoId, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    await jogos.quiz.mostrarPlacar({ grupoId, nomeGrupo, botDados: botDadosAtual, replyTo, enviarMensagemBot });
     return;
   }
   if (comando === '/velha') {
@@ -352,11 +355,18 @@ async function iniciarListenerGrupo(grupoId, botDados) {
           const bd = await db.collection('bots').doc(botDados.token).get();
           if (bd.exists) botAtualizado = { ...botDados, ...bd.data() };
         } catch (_) {}
+        // Busca nomeGrupo para o quiz
+        let nomeGrupoQuiz = grupoId;
+        try {
+          const gd = await db.collection('grupos').doc(grupoId).get();
+          if (gd.exists) nomeGrupoQuiz = gd.data().nome || grupoId;
+        } catch (_) {}
         await jogos.quiz.verificarResposta({
           grupoId,
           texto: letraResposta,
           autorNome: dado.nome || 'Membro',
           userId: dado.enviado_por,
+          nomeGrupo: nomeGrupoQuiz,
           botDados: botAtualizado,
           enviarMensagemBot,
         });

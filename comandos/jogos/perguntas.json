@@ -1,0 +1,22 @@
+[
+  { "p": "Qual e a capital do Brasil?", "ops": ["A) Sao Paulo", "B) Brasilia", "C) Rio de Janeiro", "D) Salvador"], "r": "B", "e": "Brasilia e capital desde 1960!" },
+  { "p": "Quantos lados tem um hexagono?", "ops": ["A) 5", "B) 7", "C) 6", "D) 8"], "r": "C", "e": "Hexa = 6 em grego!" },
+  { "p": "Maior planeta do sistema solar?", "ops": ["A) Saturno", "B) Netuno", "C) Urano", "D) Jupiter"], "r": "D", "e": "Jupiter cabe 1300 Terras!" },
+  { "p": "Em que ano o Brasil foi descoberto?", "ops": ["A) 1492", "B) 1500", "C) 1510", "D) 1498"], "r": "B", "e": "Cabral chegou em 1500!" },
+  { "p": "Animal mais rapido do mundo?", "ops": ["A) Leao", "B) Guepardo", "C) Aguia", "D) Cavalo"], "r": "B", "e": "Guepardo chega a 120km/h!" },
+  { "p": "Quantos continentes existem?", "ops": ["A) 5", "B) 6", "C) 7", "D) 8"], "r": "C", "e": "Sao 7 continentes!" },
+  { "p": "Simbolo quimico do ouro?", "ops": ["A) Go", "B) Or", "C) Gd", "D) Au"], "r": "D", "e": "Au vem do latim Aurum!" },
+  { "p": "Quantos ossos tem o corpo adulto?", "ops": ["A) 206", "B) 180", "C) 250", "D) 300"], "r": "A", "e": "Adultos tem 206 ossos!" },
+  { "p": "Qual o pais mais populoso do mundo?", "ops": ["A) China", "B) EUA", "C) India", "D) Brasil"], "r": "C", "e": "India ultrapassou a China em 2023!" },
+  { "p": "Quem pintou a Mona Lisa?", "ops": ["A) Michelangelo", "B) Rafael", "C) Da Vinci", "D) Picasso"], "r": "C", "e": "Leonardo da Vinci!" },
+  { "p": "Qual o menor pais do mundo?", "ops": ["A) Monaco", "B) San Marino", "C) Vaticano", "D) Liechtenstein"], "r": "C", "e": "Vaticano com apenas 0.44 km2!" },
+  { "p": "Qual o osso mais longo do corpo?", "ops": ["A) Umero", "B) Tibia", "C) Femur", "D) Fibula"], "r": "C", "e": "Femur e o osso mais longo!" },
+  { "p": "Quantas horas tem um dia?", "ops": ["A) 12", "B) 24", "C) 48", "D) 36"], "r": "B", "e": "24 horas por dia!" },
+  { "p": "Qual e a linguagem mais usada na web?", "ops": ["A) Java", "B) Python", "C) C++", "D) JavaScript"], "r": "D", "e": "JavaScript domina a web!" },
+  { "p": "Quantos planetas tem o sistema solar?", "ops": ["A) 7", "B) 8", "C) 9", "D) 10"], "r": "B", "e": "8 planetas desde 2006 quando Plutao foi rebaixado!" },
+  { "p": "Qual e o rio mais longo do mundo?", "ops": ["A) Amazonas", "B) Mississippi", "C) Nilo", "D) Yangtzé"], "r": "C", "e": "Rio Nilo com 6.650 km!" },
+  { "p": "Qual pais tem mais olimpiadas?", "ops": ["A) EUA", "B) Russia", "C) China", "D) Alemanha"], "r": "A", "e": "EUA lidera o quadro historico!" },
+  { "p": "Quantos bits tem 1 byte?", "ops": ["A) 4", "B) 16", "C) 8", "D) 32"], "r": "C", "e": "1 byte = 8 bits!" },
+  { "p": "Qual e a formula da agua?", "ops": ["A) HO2", "B) H2O", "C) H3O", "D) OH2"], "r": "B", "e": "Hidrogenio e Oxigenio: H2O!" },
+  { "p": "Quem escreveu Dom Casmurro?", "ops": ["A) Jose de Alencar", "B) Clarice Lispector", "C) Machado de Assis", "D) Carlos Drummond"], "r": "C", "e": "Machado de Assis, grande genio!" }
+]
