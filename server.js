@@ -192,6 +192,12 @@ async function processarComando(msgDoc, grupoId, botDados) {
     case '/admin':
       await adm.adicionar({ ...ctx });
       break;
+    case '/fechar':
+      await adm.fecharGrupo.fechar({ ...ctx });
+      break;
+    case '/abrir':
+      await adm.fecharGrupo.abrir({ ...ctx });
+      break;
 
     // ── JOGOS ─────────────────────────────────────────────────────────────────
     case '/dado':
@@ -359,6 +365,21 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
       // Marca imediatamente para evitar loop
       ultimoMsgIdProcessado = msgId;
+
+      // ─── Verifica se grupo esta fechado ──────────────────────────────────
+      try {
+        const gSnap  = await db.collection('grupos').doc(grupoId).get();
+        const gDados = gSnap.data() || {};
+        if (gDados.grupofechado) {
+          const admins = gDados.admins || [];
+          if (!admins.includes(dado.enviado_por) && !dado.ehBot) {
+            // Apaga mensagem de nao-ADM
+            await db.collection('grupos').doc(grupoId)
+              .collection('mensagens').doc(msgId).delete();
+            return;
+          }
+        }
+      } catch (_) {}
 
       // ─── XP automático por mensagem ──────────────────────────────────────
       if (dado.enviado_por && dado.nome) {

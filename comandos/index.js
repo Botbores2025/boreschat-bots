@@ -7,6 +7,7 @@ const menu       = require('./menu/menu');
 
 // ─── ADM ─────────────────────────────────────────────────────
 const limpar     = require('./adm/limpar');
+const fecharGrupo = require('./adm/fecharGrupo');
 const banir      = require('./adm/banir');
 const remover    = require('./adm/remover');
 const editarGrupo = require('./adm/editarGrupo');
@@ -34,7 +35,7 @@ const ranking    = require('./sistema/ranking');
 
 module.exports = {
   menu,
-  adm:     { limpar, banir, remover, editarGrupo, adicionar },
+  adm:     { limpar, banir, remover, editarGrupo, adicionar, fecharGrupo },
   jogos:   { dado, quiz, tictac, campoMinado, paciencia },
   usuario: { musica, gemini, clima },
   sistema: { xp, conquistas, economia, perfil, ranking, boasVindas },
