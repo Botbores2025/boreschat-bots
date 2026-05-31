@@ -337,9 +337,13 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       if (dado.ehBot) return;
 
       // ─── Verifica resposta de quiz ANTES do check de / ───────────────────
-      // Permite que usuário responda A, B, C ou D sem precisar de /
-      const txtUpper = (dado.texto || '').trim().toUpperCase();
-      if (['A','B','C','D'].includes(txtUpper) && jogos.quiz.quizAtivo[grupoId]) {
+      // Aceita: "b", "B", "responda b", "letra b", etc
+      const txtRaw   = (dado.texto || '').trim();
+      const txtUpper = txtRaw.toUpperCase();
+      // Extrai a letra da resposta de qualquer formato
+      const letraMatch = txtUpper.match(/\b([ABCD])\b/);
+      const letraResposta = letraMatch ? letraMatch[1] : null;
+      if (letraResposta && jogos.quiz.quizAtivo[grupoId]) {
         if (msgId === ultimoMsgIdProcessado) return;
         ultimoMsgIdProcessado = msgId;
         // Recarrega bot atualizado
@@ -350,7 +354,7 @@ async function iniciarListenerGrupo(grupoId, botDados) {
         } catch (_) {}
         await jogos.quiz.verificarResposta({
           grupoId,
-          texto: txtUpper,
+          texto: letraResposta,
           autorNome: dado.nome || 'Membro',
           userId: dado.enviado_por,
           botDados: botAtualizado,
