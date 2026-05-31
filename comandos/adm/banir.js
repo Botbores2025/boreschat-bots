@@ -1,49 +1,53 @@
-// ═══════════════════════════════════════
-// ADM/BANIR.JS — Bane (remove) um membro do grupo
-// Uso: /banir @nome ou /banir teste
-// ═══════════════════════════════════════
-const admin = require('firebase-admin');
+// ADM/BANIR.JS
+module.exports = async function banir({ grupoId, args, autorNome, autorId, botDados, replyTo, enviarMensagemBot, db }) {
+  // Verifica se eh ADM
+  const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+  const admins   = grupoDoc.data()?.admins || [];
+  if (!admins.includes(autorId)) {
+    await enviarMensagemBot(grupoId,
+      'Atencao! Este comando so pode ser usado por Administradores do grupo.',
+      botDados, { replyTo }
+    );
+    return;
+  }
 
-module.exports = async function banir({ grupoId, args, autorNome, botDados, replyTo, enviarMensagemBot, db }) {
   if (!args) {
-    await enviarMensagemBot(grupoId, '⚠️ Use: /banir @nome ou /banir nome', botDados, { replyTo });
+    await enviarMensagemBot(grupoId, 'Use: /banir @nome', botDados, { replyTo });
     return;
   }
 
   try {
-    const busca = args.replace('@', '').toLowerCase().trim();
-
-    // Busca membros do grupo
-    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+    const busca    = args.replace('@','').toLowerCase().trim();
     const membros  = grupoDoc.data()?.membros || [];
+    let banidoId   = null, banidoNome = null;
 
-    // Busca usuário pelo nome
-    let encontrado = null;
     for (const uid of membros) {
       const u = await db.collection('usuarios').doc(uid).get();
       if (u.exists && u.data().nome?.toLowerCase().includes(busca)) {
-        encontrado = { uid, nome: u.data().nome };
+        banidoId   = uid;
+        banidoNome = u.data().nome;
         break;
       }
     }
 
-    if (!encontrado) {
-      await enviarMensagemBot(grupoId, `❌ Usuário *${args}* não encontrado no grupo.`, botDados, { replyTo });
+    if (!banidoId) {
+      await enviarMensagemBot(grupoId, `Usuario "${args}" nao encontrado!`, botDados, { replyTo });
       return;
     }
 
-    // Remove dos membros e admins
+    if (admins.includes(banidoId)) {
+      await enviarMensagemBot(grupoId, `Nao posso banir ${banidoNome} pois ele(a) e administrador!`, botDados, { replyTo });
+      return;
+    }
+
     await db.collection('grupos').doc(grupoId).update({
-      membros: admin.firestore.FieldValue.arrayRemove(encontrado.uid),
-      admins:  admin.firestore.FieldValue.arrayRemove(encontrado.uid),
+      membros: membros.filter(id => id !== banidoId),
+      banidos: [...(grupoDoc.data()?.banidos || []), banidoId],
     });
 
-    await enviarMensagemBot(grupoId,
-      `🔨 *${encontrado.nome}* foi banido do grupo por *${autorNome}*!`,
-      botDados
-    );
+    await enviarMensagemBot(grupoId, `${banidoNome} foi banido(a) por ${autorNome}!`, botDados);
   } catch (e) {
-    console.error('[banir]', e.message);
-    await enviarMensagemBot(grupoId, '❌ Erro ao banir usuário.', botDados, { replyTo });
+    console.error('[Banir]', e.message);
+    await enviarMensagemBot(grupoId, 'Erro ao banir usuario.', botDados, { replyTo });
   }
 };

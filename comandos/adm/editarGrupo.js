@@ -1,23 +1,24 @@
-// ═══════════════════════════════════════
-// ADM/EDITAR-GRUPO.JS — Edita nome do grupo
-// Uso: /rename Novo Nome do Grupo
-// ═══════════════════════════════════════
+// ADM/EDITARGRUPO.JS
+module.exports = async function editarGrupo({ grupoId, args, autorNome, autorId, botDados, replyTo, enviarMensagemBot, db }) {
+  const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+  const admins   = grupoDoc.data()?.admins || [];
+  if (!admins.includes(autorId)) {
+    await enviarMensagemBot(grupoId,
+      'Atencao! Este comando so pode ser usado por Administradores do grupo.',
+      botDados, { replyTo }
+    );
+    return;
+  }
 
-module.exports = async function editarGrupo({ grupoId, args, autorNome, botDados, replyTo, enviarMensagemBot, db }) {
   if (!args) {
-    await enviarMensagemBot(grupoId, '⚠️ Use: /rename Novo Nome', botDados, { replyTo });
+    await enviarMensagemBot(grupoId, 'Use: /rename Novo Nome do Grupo', botDados, { replyTo });
     return;
   }
 
   try {
-    const nomeAntigo = (await db.collection('grupos').doc(grupoId).get()).data()?.nome;
     await db.collection('grupos').doc(grupoId).update({ nome: args.trim() });
-    await enviarMensagemBot(grupoId,
-      `✏️ Grupo renomeado por *${autorNome}*!\n\n*${nomeAntigo}* → *${args.trim()}*`,
-      botDados
-    );
+    await enviarMensagemBot(grupoId, `Grupo renomeado para "${args.trim()}" por ${autorNome}!`, botDados);
   } catch (e) {
-    console.error('[editarGrupo]', e.message);
-    await enviarMensagemBot(grupoId, '❌ Erro ao renomear grupo.', botDados, { replyTo });
+    await enviarMensagemBot(grupoId, 'Erro ao renomear grupo.', botDados, { replyTo });
   }
 };
