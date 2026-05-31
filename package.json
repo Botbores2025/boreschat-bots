@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "postinstall": "pip3 install yt-dlp 2>/dev/null || true"
   },
   "dependencies": {
     "canvas": "^3.2.3",
