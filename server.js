@@ -341,11 +341,13 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
       // ─── Verifica resposta de quiz OU decisao (A/B apos erro) ─────────────
       const txtRaw   = (dado.texto || '').trim();
-      const txtUpper = txtRaw.toUpperCase();
+      const txtUpper = txtRaw.replace(/^\//, '').toUpperCase(); // remove / se vier do botao
+      // Extrai letra — aceita "A", "B", "responda A", "/A", etc
       const letraMatch = txtUpper.match(/\b([ABCD])\b/);
       const letraResposta = letraMatch ? letraMatch[1] : null;
-      const temQuizOuDecisao = jogos.quiz.quizAtivo[grupoId] || jogos.quiz.aguardandoDecisao?.[grupoId];
-      if (letraResposta && temQuizOuDecisao) {
+      const temQuiz    = !!jogos.quiz.quizAtivo[grupoId];
+      const temDecisao = !!jogos.quiz.aguardandoDecisao[grupoId];
+      if (letraResposta && (temQuiz || temDecisao)) {
         if (msgId === ultimoMsgIdProcessado) return;
         ultimoMsgIdProcessado = msgId;
         // Recarrega bot atualizado

@@ -547,4 +547,4 @@ async function mostrarPlacar({ grupoId, nomeGrupo, botDados, replyTo, enviarMens
   );
 }
 
-module.exports = { iniciarQuiz, verificarResposta, mostrarPlacar, quizAtivo };
+module.exports = { iniciarQuiz, verificarResposta, mostrarPlacar, quizAtivo, aguardandoDecisao };
