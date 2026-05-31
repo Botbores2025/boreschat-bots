@@ -7,6 +7,9 @@ const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
 
+// ─── MÓDULOS DE COMANDOS ──────────────────────────────────────────────────────
+const { adm, jogos, usuario } = require('./comandos');
+
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
 app.options('*', cors());
@@ -147,6 +150,12 @@ async function processarComando(msgDoc, grupoId, botDados) {
 
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
 
+  // ─── VERIFICA RESPOSTA DE QUIZ (A, B, C ou D) ────────────────────────────
+  const respostaQuiz = await jogos.quiz.verificarResposta({
+    grupoId, texto, autorNome, userId: dado.enviado_por, botDados: botDadosAtual, enviarMensagemBot
+  });
+  if (respostaQuiz) return;
+
   // ─── COMANDO CUSTOMIZADO ─────────────────────────────────────────────────
   if (comandosAtuais[cmdSemBarra]) {
     let resposta = comandosAtuais[cmdSemBarra].resposta;
@@ -184,9 +193,9 @@ async function processarComando(msgDoc, grupoId, botDados) {
     const textoMenu = `╔══════════════════╗\n🤖  *${botDadosAtual.nome}*\n╚══════════════════╝\n\nOlá, *${autorNome}*! 👋\n\n📋 *COMANDOS DISPONÍVEIS:*\n${listaComandos}\n\n👇 Escolha uma opção:`;
 
     const botoes = [
-      { label: '🏓 Ping & Status', comando: '/ping'   },
-      { label: '🧹 Limpar Chat',   comando: '/limpar'  },
+      { label: '🎮 Jogos',         comando: '/jogos'   },
       { label: '⚡ Comandos',       comando: '/cmds'    },
+      { label: '🏓 Ping',          comando: '/ping'    },
     ];
 
     await enviarMensagemBot(
@@ -202,6 +211,23 @@ async function processarComando(msgDoc, grupoId, botDados) {
     return;
   }
 
+  if (comando === '/jogos') {
+    const botoes = [
+      { label: '🎲 Dado',        comando: '/dado'   },
+      { label: '🧠 Quiz',        comando: '/quiz'   },
+      { label: '❌⭕ Velha',      comando: '/velha'  },
+      { label: '💣 Campo Minado', comando: '/minas'  },
+      { label: '🏆 Placar',      comando: '/placar' },
+    ];
+    await enviarMensagemBot(grupoId,
+      `🎮 *Jogos do ${botDadosAtual.nome}*
+
+Escolha um jogo ou digite o comando!`,
+      botDadosAtual, { replyTo, botoes }
+    );
+    return;
+  }
+
   if (comando === '/cmds') {
     const keys = Object.keys(comandosAtuais);
     const lista = keys.length > 0
@@ -213,38 +239,69 @@ async function processarComando(msgDoc, grupoId, botDados) {
     return;
   }
 
+
+
+  // ─── ADM ──────────────────────────────────────────────────────────────────
   if (comando === '/limpar') {
-    try {
-      let totalApagadas = 0;
+    await adm.limpar({ grupoId, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/banir') {
+    await adm.banir({ grupoId, args, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/remover') {
+    await adm.remover({ grupoId, args, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/rename') {
+    await adm.editarGrupo({ grupoId, args, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/admin') {
+    await adm.adicionar({ grupoId, args, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
 
-      // Apaga TUDO em lotes de 400 (limite seguro do Firestore batch)
-      while (true) {
-        const snap = await db
-          .collection('grupos').doc(grupoId)
-          .collection('mensagens')
-          .limit(400)
-          .get();
-
-        if (snap.empty) break;
-
-        const batch = db.batch();
-        snap.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        totalApagadas += snap.docs.length;
-
-        // Se veio menos de 400 acabou
-        if (snap.docs.length < 400) break;
-      }
-
-      await enviarMensagemBot(
-        grupoId,
-        `🧹 *Chat limpo!*\n\n${totalApagadas} mensagem(ns) removida(s) por *${autorNome}*.`,
-        botDadosAtual
-      );
-    } catch (e) {
-      console.error('Erro ao limpar chat:', e.message);
-      await enviarMensagemBot(grupoId, '❌ Erro ao limpar o chat.', botDadosAtual, { replyTo });
+  // ─── JOGOS ────────────────────────────────────────────────────────────────
+  if (comando === '/dado') {
+    await jogos.dado({ grupoId, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    return;
+  }
+  if (comando === '/quiz') {
+    await jogos.quiz.iniciarQuiz({ grupoId, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    return;
+  }
+  if (comando === '/placar') {
+    await jogos.quiz.mostrarPlacar({ grupoId, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    return;
+  }
+  if (comando === '/velha') {
+    const partida = jogos.tictac.partidas[grupoId];
+    if (partida && /^[1-9]$/.test(args)) {
+      await jogos.tictac.jogar({ grupoId, args, autorId: dado.enviado_por, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    } else {
+      await jogos.tictac.iniciarPartida({ grupoId, args, autorNome, autorId: dado.enviado_por, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
     }
+    return;
+  }
+  if (comando === '/minas') {
+    const jogoMinas = jogos.campoMinado.jogos[grupoId];
+    if (jogoMinas && args) {
+      await jogos.campoMinado.revelar({ grupoId, args, autorId: dado.enviado_por, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    } else {
+      await jogos.campoMinado.iniciarJogo({ grupoId, autorId: dado.enviado_por, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    }
+    return;
+  }
+
+  // ─── USUÁRIO ──────────────────────────────────────────────────────────────
+  if (comando === '/musica') {
+    await usuario.musica({ grupoId, args, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
+    return;
+  }
+  if (comando === '/ia') {
+    await usuario.gemini({ grupoId, args, autorNome, botDados: botDadosAtual, replyTo, enviarMensagemBot });
     return;
   }
 
