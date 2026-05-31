@@ -3,9 +3,19 @@
 // Uso: /velha @nome  /velha 1-9
 // ═══════════════════════════════════════
 
-const { createCanvas } = require('canvas');
+const { createCanvas, registerFont } = require('canvas');
 const fs   = require('fs');
 const path = require('path');
+
+// Registra fonte local
+try {
+  const fontsDir = path.join(__dirname, '../../fonts');
+  registerFont(path.join(fontsDir, 'Regular.ttf'), { family: 'Quiz', weight: 'normal' });
+  registerFont(path.join(fontsDir, 'Bold.ttf'),    { family: 'Quiz', weight: 'bold'   });
+} catch (e) {}
+
+const F_BOLD = (size) => `bold ${size}px Quiz, Arial, sans-serif`;
+const F_REG  = (size) => `${size}px Quiz, Arial, sans-serif`;
 
 const partidas = {};
 
@@ -76,7 +86,7 @@ function gerarImagem(tabuleiro, vezNome, vezSimbolo, fimJogo = null) {
     } else {
       // Número da posição
       ctx.fillStyle    = '#333';
-      ctx.font         = 'bold 32px Arial';
+      ctx.font = F_BOLD(32);
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), cx, cy);
@@ -100,11 +110,11 @@ function gerarImagem(tabuleiro, vezNome, vezSimbolo, fimJogo = null) {
   if (fimJogo) {
     if (fimJogo === 'empate') {
       ctx.fillStyle = '#FFC107';
-      ctx.font      = 'bold 28px Arial';
+      ctx.font = F_BOLD(28);
       ctx.fillText('EMPATE!', W / 2, rodapeY + 20);
     } else {
       ctx.fillStyle = '#22C55E';
-      ctx.font      = 'bold 26px Arial';
+      ctx.font = F_BOLD(26);
       // Limita nome a 20 chars para não quebrar
       const nome = fimJogo.substring(0, 20);
       ctx.fillText(`${nome} VENCEU!`, W / 2, rodapeY + 20);
@@ -116,7 +126,7 @@ function gerarImagem(tabuleiro, vezNome, vezSimbolo, fimJogo = null) {
     ctx.fillRect(W / 2 - 110, rodapeY + 6, 18, 18);
 
     ctx.fillStyle    = '#fff';
-    ctx.font         = 'bold 20px Arial';
+    ctx.font = F_BOLD(20);
     ctx.textAlign    = 'left';
     const nomeExibir = (vezNome || '').substring(0, 18);
     ctx.fillText(`Vez de ${nomeExibir} (${vezSimbolo})`, W / 2 - 86, rodapeY + 16);

@@ -13,6 +13,21 @@ const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
   : 'https://boreschat-bots-production.up.railway.app';
 
+// ─── REGISTRA FONTES ─────────────────────────────────────────────────────────
+// BUG FIX: Railway nao tem fontes — registra Montserrat local
+try {
+  const fontsDir = path.join(__dirname, '../../fonts');
+  registerFont(path.join(fontsDir, 'Regular.ttf'), { family: 'Quiz', weight: 'normal' });
+  registerFont(path.join(fontsDir, 'Bold.ttf'),    { family: 'Quiz', weight: 'bold'   });
+  console.log('Fontes Quiz registradas!');
+} catch (e) {
+  console.warn('Fontes nao encontradas, usando fallback:', e.message);
+}
+
+// Atalhos de fonte
+const F_BOLD = (size) => `bold ${size}px Quiz, Arial, sans-serif`;
+const F_REG  = (size) => `${size}px Quiz, Arial, sans-serif`;
+
 // ─── ESTADO ──────────────────────────────────────────────────────────────────
 const quizAtivo = {};
 const placar    = {};
@@ -110,7 +125,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
   ctx.fillStyle = 'rgba(255,107,0,0.1)';
   ctx.fillRect(0, 6, W, 40);
   ctx.fillStyle    = '#FF6B00';
-  ctx.font         = 'bold 15px Arial';
+  ctx.font = F_BOLD(15);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(limparTexto(nomeGrupo).substring(0, 42), W / 2, 26);
@@ -119,7 +134,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
   ctx.fillStyle = 'rgba(255,107,0,0.15)';
   roundRect(ctx, PADDING, 56, 180, 28, 7);
   ctx.fillStyle    = '#FF6B00';
-  ctx.font         = 'bold 13px Arial';
+  ctx.font = F_BOLD(13);
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(limparTexto(nomeUsuario).substring(0, 20), PADDING + 10, 70);
@@ -142,7 +157,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
   ctx.stroke();
 
   ctx.fillStyle    = '#fff';
-  ctx.font         = 'bold 16px Arial';
+  ctx.font = F_BOLD(16);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(segundos), timerX, timerY);
@@ -155,7 +170,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
 
   // ── Pergunta ───────────────────────────────────────────────────────────────
   ctx.fillStyle    = '#f0f0f0';
-  ctx.font         = 'bold 18px Arial';
+  ctx.font = F_BOLD(18);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'alphabetic';
   wrapText(ctx, pergunta.p, W / 2, 130, W - PADDING * 2, 26);
@@ -185,7 +200,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
     ctx.fillStyle = cor;
     roundRect(ctx, x + 8, y + 12, 28, 28, 6);
     ctx.fillStyle    = '#fff';
-    ctx.font         = 'bold 14px Arial';
+    ctx.font = F_BOLD(14);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(letra, x + 22, y + 26);
@@ -193,7 +208,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
     // Texto da opcao (sem a letra prefix)
     const textoOp = limparTexto(op.replace(/^[A-D]\)\s*/, '')).substring(0, 26);
     ctx.fillStyle    = '#e0e0e0';
-    ctx.font         = '13px Arial';
+    ctx.font = F_REG(13);
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(textoOp, x + 44, y + 26);
@@ -201,7 +216,7 @@ function gerarImagemPergunta({ pergunta, nomeUsuario, nomeGrupo, segundos }) {
 
   // ── Instrucao ──────────────────────────────────────────────────────────────
   ctx.fillStyle    = '#555';
-  ctx.font         = '12px Arial';
+  ctx.font = F_REG(12);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('Digite A, B, C ou D para responder', W / 2, 428);
@@ -229,7 +244,7 @@ function gerarImagemResultado({ correto, nomeUsuario, nomeGrupo, explicacao, res
   ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fillRect(0, 6, W, 38);
   ctx.fillStyle    = '#888';
-  ctx.font         = '13px Arial';
+  ctx.font = F_REG(13);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(limparTexto(nomeGrupo).substring(0, 42), W / 2, 25);
@@ -239,30 +254,30 @@ function gerarImagemResultado({ correto, nomeUsuario, nomeGrupo, explicacao, res
   ctx.lineWidth   = 4;
   ctx.beginPath(); ctx.arc(W / 2, 95, 34, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle    = cor;
-  ctx.font         = 'bold 30px Arial';
+  ctx.font = F_BOLD(30);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(correto ? '+1' : '-1', W / 2, 95);
 
   // Titulo
   ctx.fillStyle    = cor;
-  ctx.font         = 'bold 24px Arial';
+  ctx.font = F_BOLD(24);
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(correto ? 'CORRETO!' : 'ERROU!', W / 2, 152);
 
   // Nome usuario
   ctx.fillStyle = '#999';
-  ctx.font      = '14px Arial';
+  ctx.font = F_REG(14);
   ctx.fillText(limparTexto(nomeUsuario).substring(0, 30), W / 2, 174);
 
   // Resposta correta
   ctx.fillStyle = '#ddd';
-  ctx.font      = 'bold 14px Arial';
+  ctx.font = F_BOLD(14);
   ctx.fillText(`Resposta correta: ${respostaCorreta}`, W / 2, 200);
 
   // Explicacao
   ctx.fillStyle    = '#777';
-  ctx.font         = '13px Arial';
+  ctx.font = F_REG(13);
   ctx.textBaseline = 'alphabetic';
   wrapText(ctx, explicacao, W / 2, 225, W - 80, 20);
 
@@ -271,7 +286,7 @@ function gerarImagemResultado({ correto, nomeUsuario, nomeGrupo, explicacao, res
   roundRect(ctx, 24, 268, W - 48, 72, 12);
 
   ctx.fillStyle    = '#FF6B00';
-  ctx.font         = 'bold 12px Arial';
+  ctx.font = F_BOLD(12);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('PLACAR', W / 2, 284);
@@ -284,13 +299,13 @@ function gerarImagemResultado({ correto, nomeUsuario, nomeGrupo, explicacao, res
   top.forEach((u, i) => {
     const cx = 24 + i * itemW + itemW / 2;
     ctx.fillStyle    = '#ddd';
-    ctx.font         = 'bold 12px Arial';
+    ctx.font = F_BOLD(12);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(limparTexto(u.nome).substring(0, 10), cx, 305);
     const pts = u.acertos - u.erros;
     ctx.fillStyle = pts >= 0 ? '#22C55E' : '#EF4444';
-    ctx.font      = 'bold 14px Arial';
+    ctx.font = F_BOLD(14);
     ctx.fillText(`${pts > 0 ? '+' : ''}${pts}`, cx, 323);
   });
 
@@ -319,17 +334,17 @@ function gerarImagemPlacar({ placarAtual, nomeGrupo }) {
   ctx.fillStyle = 'rgba(255,107,0,0.1)';
   ctx.fillRect(0, 6, W, 48);
   ctx.fillStyle    = '#FF6B00';
-  ctx.font         = 'bold 18px Arial';
+  ctx.font = F_BOLD(18);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('PLACAR DO QUIZ', W / 2, 24);
   ctx.fillStyle = '#777';
-  ctx.font      = '13px Arial';
+  ctx.font = F_REG(13);
   ctx.fillText(limparTexto(nomeGrupo).substring(0, 42), W / 2, 44);
 
   if (lista.length === 0) {
     ctx.fillStyle    = '#555';
-    ctx.font         = '16px Arial';
+    ctx.font = F_REG(16);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('Nenhum ponto ainda! Use /quiz', W / 2, H / 2);
@@ -345,27 +360,27 @@ function gerarImagemPlacar({ placarAtual, nomeGrupo }) {
 
       // Posicao
       ctx.fillStyle    = i < 3 ? cor : '#555';
-      ctx.font         = 'bold 20px Arial';
+      ctx.font = F_BOLD(20);
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${i + 1}`, PADDING + 24, y + 24);
 
       // Nome
       ctx.fillStyle    = '#f0f0f0';
-      ctx.font         = 'bold 15px Arial';
+      ctx.font = F_BOLD(15);
       ctx.textAlign    = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(limparTexto(u.nome).substring(0, 20), PADDING + 52, y + 16);
 
       // Acertos e erros
       ctx.fillStyle = '#777';
-      ctx.font      = '12px Arial';
+      ctx.font = F_REG(12);
       ctx.fillText(`${u.acertos} acertos   ${u.erros} erros`, PADDING + 52, y + 34);
 
       // Pontos
       const pts = u.acertos - u.erros;
       ctx.fillStyle    = pts >= 0 ? '#22C55E' : '#EF4444';
-      ctx.font         = 'bold 18px Arial';
+      ctx.font = F_BOLD(18);
       ctx.textAlign    = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${pts >= 0 ? '+' : ''}${pts} pts`, W - PADDING - 10, y + 24);
