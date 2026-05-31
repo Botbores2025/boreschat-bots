@@ -100,6 +100,7 @@ const CATEGORIAS = {
       { cmd: '/cmds',      desc: 'Lista todos os comandos'   },
       { cmd: '/ia',        desc: 'Perguntar pra IA Gemini'   },
       { cmd: '/musica',    desc: 'Buscar musica'             },
+      { cmd: '/clima',     desc: 'Clima de qualquer cidade'  },
     ],
   },
 };
