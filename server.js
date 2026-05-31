@@ -143,17 +143,53 @@ async function processarComando(msgDoc, grupoId, botDados) {
   switch (comando) {
 
     // ── MENU ─────────────────────────────────────────────────────────────────
-    case '/menu':
-      await menu.handleMenu(ctx);
+    case '/menu': {
+      const menuFotoUrl = botDadosAtual.menuFoto || botDadosAtual.foto || '';
+      const keysMenu    = Object.keys(comandosAtuais);
+      const listaCustom = keysMenu.length > 0
+        ? keysMenu.map(k => `• /${k} — ${comandosAtuais[k].descricao || ''}`).join('\n')
+        : '• Nenhum comando customizado';
+      const textoMenuPrincipal = `╔══════════════════╗\n🤖  *${botDadosAtual.nome}*\n╚══════════════════╝\n\nOla, *${autorNome}*! 👋\n\n📋 *COMANDOS:*\n${listaCustom}\n\n👇 Escolha uma opcao:`;
+      const botoesMenu = [
+        { label: 'Jogos',    comando: '/jogos'    },
+        { label: 'Perfil',   comando: '/perfil'   },
+        { label: 'Economia', comando: '/daily'    },
+        { label: 'Ranking',  comando: '/ranking'  },
+        { label: 'Ping',     comando: '/ping'     },
+      ];
+      await enviarMensagemBot(grupoId, textoMenuPrincipal, botDadosAtual, {
+        replyTo,
+        ...(menuFotoUrl ? { fotoUrl: menuFotoUrl } : {}),
+        botoes: botoesMenu,
+      });
       break;
+    }
 
-    case '/jogos':
-      await menu.handleJogos(ctx);
+    case '/jogos': {
+      const botoesJogos = [
+        { label: 'Dado',        comando: '/dado'      },
+        { label: 'Quiz',        comando: '/quiz'      },
+        { label: 'Velha',       comando: '/velha'     },
+        { label: 'Campo Minado',comando: '/minas'     },
+        { label: 'Paciencia',   comando: '/paciencia' },
+        { label: 'Placar',      comando: '/placar'    },
+      ];
+      await enviarMensagemBot(grupoId,
+        `🎮 *Jogos do ${botDadosAtual.nome}*\n\nEscolha um jogo:`,
+        botDadosAtual, { replyTo, botoes: botoesJogos }
+      );
       break;
+    }
 
-    case '/cmds':
-      await menu.handleCmds({ ...ctx, comandosCustom: comandosAtuais });
+    case '/cmds': {
+      const keysCmd = Object.keys(comandosAtuais);
+      const listaCmd = keysCmd.length > 0
+        ? keysCmd.map(k => `• /${k} — ${comandosAtuais[k].descricao || comandosAtuais[k].resposta?.substring(0,30)}`).join('\n')
+        : 'Nenhum comando customizado.\nAcesse o painel web para adicionar!';
+      const textoCmds = `📋 *${botDadosAtual.nome}* — Comandos\n\n${listaCmd}\n\n📌 *Padrao:*\n• /ping • /menu • /jogos • /perfil\n• /daily • /trabalhar • /roubar • /loja\n• /ranking • /quiz • /dado • /velha\n• /minas • /paciencia • /limpar • /info`;
+      await enviarMensagemBot(grupoId, textoCmds, botDadosAtual, { replyTo });
       break;
+    }
 
     // ── PING / INFO ───────────────────────────────────────────────────────────
     case '/ping': {
@@ -257,9 +293,27 @@ async function processarComando(msgDoc, grupoId, botDados) {
       break;
 
     // ── SISTEMA ───────────────────────────────────────────────────────────────
-    case '/perfil':
-      await sistema.perfil.mostrarPerfil({ ...ctx, userId: dado.enviado_por });
+    case '/perfil': {
+      const targetId = dado.enviado_por;
+      try {
+        // Tenta gerar imagem canvas
+        await sistema.perfil.mostrarPerfil({ ...ctx, userId: targetId });
+      } catch (e) {
+        console.error('[Perfil] Erro:', e.message);
+        // Fallback: busca stats e manda texto
+        try {
+          const ref   = db.collection('grupos').doc(grupoId).collection('usuarios_stats').doc(targetId);
+          const snap  = await ref.get();
+          const dados = snap.exists ? snap.data() : { xp:0, moedas:100, mensagens:0, wins:0, conquistas:[] };
+          const info  = sistema.xp.calcularLevel(dados.xp || 0);
+          const texto = `👤 *Perfil de ${autorNome}*\n\n⭐ Level: *${info.level}*\n✨ XP: *${dados.xp || 0}*\n💰 Moedas: *${dados.moedas || 100}*\n💬 Mensagens: *${dados.mensagens || 0}*\n🏆 Vitorias: *${dados.wins || 0}*\n🎖️ Conquistas: *${(dados.conquistas||[]).length}*`;
+          await enviarMensagemBot(grupoId, texto, botDadosAtual, { replyTo });
+        } catch (e2) {
+          await enviarMensagemBot(grupoId, `Perfil de ${autorNome} ainda nao tem dados. Mande mensagens para ganhar XP!`, botDadosAtual, { replyTo });
+        }
+      }
       break;
+    }
     case '/ranking':
       await sistema.ranking.mostrarRanking(ctx);
       break;
