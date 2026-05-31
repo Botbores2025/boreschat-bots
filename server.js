@@ -316,6 +316,31 @@ async function iniciarListenerGrupo(grupoId, botDados) {
   let primeiraExecucao      = true;
   let ultimoMsgIdProcessado = null;
 
+  // ─── Listener de novos membros ──────────────────────────────────────────
+  const unsubGrupo = db.collection('grupos').doc(grupoId).onSnapshot(async (snap) => {
+    if (!snap.exists) return;
+    const dados        = snap.data();
+    const membrosAtual = dados.membros || [];
+    if (!iniciarListenerGrupo._membrosAnt) iniciarListenerGrupo._membrosAnt = {};
+    const antigos = iniciarListenerGrupo._membrosAnt[grupoId] || [];
+    const novos   = membrosAtual.filter(id => !antigos.includes(id));
+    iniciarListenerGrupo._membrosAnt[grupoId] = membrosAtual;
+    if (antigos.length === 0 || novos.length === 0) return;
+    for (const userId of novos) {
+      try {
+        let botAtual = botDados;
+        try { const bd = await db.collection('bots').doc(botDados.token).get(); if (bd.exists) botAtual = { ...botDados, ...bd.data() }; } catch (_) {}
+        await sistema.boasVindas.enviarBoasVindas({
+          grupoId, userId,
+          nomeGrupo: dados.nome || grupoId,
+          totalMembros: membrosAtual.length,
+          botDados: botAtual,
+          db, enviarMensagemBot,
+        });
+      } catch (e) { console.error('[BoasVindas]', e.message); }
+    }
+  });
+
   const unsub = db
     .collection('grupos').doc(grupoId)
     .collection('mensagens')

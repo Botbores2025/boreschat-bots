@@ -22,9 +22,11 @@ const paciencia  = require('./jogos/paciencia');
 // ─── USUARIO ─────────────────────────────────────────────────
 const musica     = require('./usuario/musica');
 const gemini     = require('./usuario/gemini');
-const clima = require('./usuario/clima');
+const clima      = require('./usuario/clima');
+
 // ─── SISTEMA ─────────────────────────────────────────────────
 const xp         = require('./sistema/xp');
+const boasVindas = require('./sistema/boasVindas');
 const conquistas = require('./sistema/conquistas');
 const economia   = require('./sistema/economia');
 const perfil     = require('./sistema/perfil');
@@ -34,6 +36,6 @@ module.exports = {
   menu,
   adm:     { limpar, banir, remover, editarGrupo, adicionar },
   jogos:   { dado, quiz, tictac, campoMinado, paciencia },
-  usuario: { musica, gemini,clima },
-  sistema: { xp, conquistas, economia, perfil, ranking },
+  usuario: { musica, gemini, clima },
+  sistema: { xp, conquistas, economia, perfil, ranking, boasVindas },
 };
