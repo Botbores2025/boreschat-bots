@@ -181,28 +181,33 @@ async function gerarImagemPerfil(stats, nomeGrupo) {
   const iconY = 248;
 
   desbloq.forEach((c) => {
-    ctx.fillStyle = '#1f1f1f';
+    // Fundo colorido com cor da conquista
+    ctx.fillStyle = (c.cor || '#FF6B00') + '22';
     roundRect(ctx, cx, iconY, 44, 44, 8); ctx.fill();
-    ctx.strokeStyle = cor + '66';
-    ctx.lineWidth   = 1;
+    ctx.strokeStyle = (c.cor || '#FF6B00') + '88';
+    ctx.lineWidth   = 1.5;
     roundRect(ctx, cx, iconY, 44, 44, 8); ctx.stroke();
-    ctx.font         = '20px Arial';
+    // Texto do icone (ex: MSG, LV5, WIN)
+    ctx.fillStyle    = c.cor || '#FF6B00';
+    ctx.font         = FB(10);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle    = '#fff';
-    ctx.fillText(c.icon, cx + 22, iconY + 22);
+    ctx.fillText(c.icon || '?', cx + 22, iconY + 22);
     cx += 50;
     if (cx > W - 60) return;
   });
 
   bloqueadas.forEach((c) => {
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = '#1a1a1a';
     roundRect(ctx, cx, iconY, 44, 44, 8); ctx.fill();
-    ctx.fillStyle    = '#333';
-    ctx.font         = '20px Arial';
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth   = 1;
+    roundRect(ctx, cx, iconY, 44, 44, 8); ctx.stroke();
+    ctx.fillStyle    = '#444';
+    ctx.font         = FB(10);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🔒', cx + 22, iconY + 22);
+    ctx.fillText('???', cx + 22, iconY + 22);
     cx += 50;
     if (cx > W - 60) return;
   });

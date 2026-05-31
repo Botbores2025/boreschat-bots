@@ -357,22 +357,54 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       const dado    = docSnap.data();
       const msgId   = docSnap.id;
 
+      // ─── Ignora mensagem ja processada ou do bot ──────────────────────────
       if (msgId === ultimoMsgIdProcessado) return;
       if (dado.ehBot) return;
 
-      // ─── XP AUTOMATICO POR MENSAGEM ──────────────────────────────────────
+      // Marca como processada imediatamente para evitar duplo disparo
+      ultimoMsgIdProcessado = msgId;
+
+      // ─── XP AUTOMATICO POR MENSAGEM (sem anuncio de level up inline) ──────
+      // Usa flag separada para nao chamar enviarMensagemBot dentro do listener
+      // e evitar loop: msg -> XP -> bot envia -> listener pega -> XP...
       if (dado.enviado_por && dado.nome) {
         try {
-          let botAtivXP = botDados;
-          const bdXP = await db.collection('bots').doc(botDados.token).get();
-          if (bdXP.exists) botAtivXP = { ...botDados, ...bdXP.data() };
-          const statsXP = await sistema.xp.adicionarXP(
-            db, grupoId, dado.enviado_por, dado.nome, dado.foto || '',
-            'mensagem', enviarMensagemBot, botAtivXP
-          );
-          if (statsXP.levelUp) {
-            const st = await sistema.xp.getStats(db, grupoId, dado.enviado_por);
-            if (st) await sistema.conquistas.verificarConquistas(db, grupoId, dado.enviado_por, st, enviarMensagemBot, botAtivXP);
+          const refStats = db.collection('grupos').doc(grupoId)
+            .collection('usuarios_stats').doc(dado.enviado_por);
+          const snapStats = await refStats.get();
+          const dadosStats = snapStats.exists ? snapStats.data() : {
+            userId: dado.enviado_por, nome: dado.nome, foto: dado.foto || '',
+            xp: 0, moedas: 100, mensagens: 0, wins: 0,
+            conquistas: [], streak_daily: 0, quiz_acertos: 0,
+          };
+          const xpAntes  = dadosStats.xp || 0;
+          const novoXP   = xpAntes + 2;
+          const lvAntes  = sistema.xp.calcularLevel(xpAntes).level;
+          const lvNovo   = sistema.xp.calcularLevel(novoXP).level;
+          await refStats.set({
+            ...dadosStats,
+            xp: novoXP,
+            nome: dado.nome,
+            foto: dado.foto || '',
+            mensagens: (dadosStats.mensagens || 0) + 1,
+          }, { merge: true });
+
+          // So anuncia level up (1 msg do bot, nao gera XP pq ehBot=true)
+          if (lvNovo > lvAntes) {
+            let botAtivXP = botDados;
+            try {
+              const bdXP = await db.collection('bots').doc(botDados.token).get();
+              if (bdXP.exists) botAtivXP = { ...botDados, ...bdXP.data() };
+            } catch (_) {}
+            const titulo = sistema.xp.getTitulo(lvNovo);
+            await enviarMensagemBot(grupoId,
+              `*${dado.nome}* subiu para o Level ${lvNovo}!
+${titulo}`,
+              botAtivXP
+            );
+            // Verifica conquistas de level
+            const stFull = await sistema.xp.getStats(db, grupoId, dado.enviado_por);
+            if (stFull) await sistema.conquistas.verificarConquistas(db, grupoId, dado.enviado_por, stFull, enviarMensagemBot, botAtivXP);
           }
         } catch (_) {}
       }
@@ -385,7 +417,6 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       const temDecisao    = !!jogos.quiz.aguardandoDecisao[grupoId];
 
       if (letraResposta && (temQuiz || temDecisao)) {
-        ultimoMsgIdProcessado = msgId;
         let botAtualizado = botDados;
         let nomeGrupoQuiz = grupoId;
         try {
