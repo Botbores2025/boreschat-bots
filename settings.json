@@ -1,0 +1,13 @@
+{
+  "BOT_NAME": "BoresBot",
+  "BOT_VERSION": "2.1.0",
+  "BOT_PREFIX": "/",
+  "BOT_DESC": "Bot oficial do BoresChat",
+  "MENU_FOTO": "",
+  "CORES": {
+    "primaria": "#FF6B00",
+    "secundaria": "#1a1a1a",
+    "texto": "#ffffff",
+    "sub": "rgba(255,255,255,0.45)"
+  }
+}

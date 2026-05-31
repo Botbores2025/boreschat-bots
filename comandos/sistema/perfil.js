@@ -253,21 +253,46 @@ async function mostrarPerfil({ grupoId, userId, autorId, autorNome, foto, args, 
     }
   }
 
-  const stats = await getStats(db, grupoId, targetId);
+  let stats = await getStats(db, grupoId, targetId);
+
+  // Se nao tem stats ainda, cria um perfil padrao para mostrar
+  if (!stats) {
+    const ref = db.collection('grupos').doc(grupoId).collection('usuarios_stats').doc(targetId);
+    const dadosPadrao = {
+      userId: targetId,
+      nome: targetNome,
+      foto: foto || '',
+      xp: 0, moedas: 100, mensagens: 0, wins: 0,
+      conquistas: [], streak_daily: 0, quiz_acertos: 0,
+      criadoEm: new Date().toISOString(),
+    };
+    await ref.set(dadosPadrao);
+    stats = await getStats(db, grupoId, targetId);
+  }
+
+  // Garante que stats existe
   if (!stats) {
     await enviarMensagemBot(grupoId,
-      `${targetNome} ainda nao tem perfil! Envie mensagens no grupo para ganhar XP.`,
+      `Erro ao carregar perfil de ${targetNome}. Tente novamente.`,
       botDados, { replyTo }
     );
     return;
   }
 
-  const nomeArq = await gerarImagemPerfil(stats, nomeGrupo);
-  await enviarMensagemBot(grupoId,
-    `Perfil de ${targetNome}`,
-    botDados,
-    { replyTo, fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
-  );
+  try {
+    const nomeArq = await gerarImagemPerfil(stats, nomeGrupo);
+    await enviarMensagemBot(grupoId,
+      `Perfil de ${targetNome}`,
+      botDados,
+      { replyTo, fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
+    );
+  } catch (e) {
+    console.error('[Perfil] Erro ao gerar imagem:', e.message);
+    // Fallback texto se canvas falhar
+    const pts = (stats.xp || 0);
+    const info = `*Perfil de ${targetNome}*\n\nLevel: *${stats.level}*\nXP: *${pts}*\nMoedas: *${stats.moedas || 100}*\nMensagens: *${stats.mensagens || 0}*\nVitorias: *${stats.wins || 0}*`;
+    await enviarMensagemBot(grupoId, info, botDados, { replyTo });
+  }
 }
 
 module.exports = { mostrarPerfil };
