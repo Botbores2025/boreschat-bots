@@ -147,9 +147,9 @@ async function processarComando(msgDoc, grupoId, botDados) {
       const menuFotoUrl = botDadosAtual.menuFoto || botDadosAtual.foto || '';
       const keysMenu    = Object.keys(comandosAtuais);
       const listaCustom = keysMenu.length > 0
-        ? keysMenu.map(k => `• /${k} — ${comandosAtuais[k].descricao || ''}`).join('\n')
-        : '• Nenhum comando customizado';
-      const textoMenuPrincipal = `╔══════════════════╗\n🤖  *${botDadosAtual.nome}*\n╚══════════════════╝\n\nOla, *${autorNome}*! 👋\n\n📋 *COMANDOS:*\n${listaCustom}\n\n👇 Escolha uma opcao:`;
+        ? keysMenu.map(k => `/${k}`).join(' | ')
+        : 'Nenhum customizado';
+      const textoMenuPrincipal = `🤖 *${botDadosAtual.nome}*\n\nOla, *${autorNome}*! 👋\n\nComandos: ${listaCustom}\n\n/jogos /perfil /daily /ranking /ping /info`;
       const botoesMenu = [
         { label: 'Jogos',    comando: '/jogos'    },
         { label: 'Perfil',   comando: '/perfil'   },
@@ -157,10 +157,12 @@ async function processarComando(msgDoc, grupoId, botDados) {
         { label: 'Ranking',  comando: '/ranking'  },
         { label: 'Ping',     comando: '/ping'     },
       ];
-      await enviarMensagemBot(grupoId, textoMenuPrincipal, botDadosAtual, {
-        replyTo,
-        ...(menuFotoUrl ? { fotoUrl: menuFotoUrl } : {}),
+      // Manda texto primeiro (sempre aparece)
+      await enviarMensagemBot(grupoId, textoMenuPrincipal, botDadosAtual, { replyTo });
+      // Manda botoes separado
+      await enviarMensagemBot(grupoId, 'Escolha uma opcao:', botDadosAtual, {
         botoes: botoesMenu,
+        ...(menuFotoUrl ? { fotoUrl: menuFotoUrl } : {}),
       });
       break;
     }
@@ -306,10 +308,11 @@ async function processarComando(msgDoc, grupoId, botDados) {
           const snap  = await ref.get();
           const dados = snap.exists ? snap.data() : { xp:0, moedas:100, mensagens:0, wins:0, conquistas:[] };
           const info  = sistema.xp.calcularLevel(dados.xp || 0);
-          const texto = `👤 *Perfil de ${autorNome}*\n\n⭐ Level: *${info.level}*\n✨ XP: *${dados.xp || 0}*\n💰 Moedas: *${dados.moedas || 100}*\n💬 Mensagens: *${dados.mensagens || 0}*\n🏆 Vitorias: *${dados.wins || 0}*\n🎖️ Conquistas: *${(dados.conquistas||[]).length}*`;
-          await enviarMensagemBot(grupoId, texto, botDadosAtual, { replyTo });
+          const txtStats = 'Perfil de ' + autorNome + ' - Level ' + info.level + ' - XP ' + (dados.xp||0) + ' - Moedas ' + (dados.moedas||100) + ' - Msgs ' + (dados.mensagens||0) + ' - Wins ' + (dados.wins||0);
+          await enviarMensagemBot(grupoId, txtStats, botDadosAtual, { replyTo });
         } catch (e2) {
-          await enviarMensagemBot(grupoId, `Perfil de ${autorNome} ainda nao tem dados. Mande mensagens para ganhar XP!`, botDadosAtual, { replyTo });
+          const txtPerfil = `👤 *Perfil de ${autorNome}*\n\nVoce ainda nao tem dados!\nMande mensagens no grupo para ganhar XP.`;
+          await enviarMensagemBot(grupoId, txtPerfil, botDadosAtual, { replyTo });
         }
       }
       break;
