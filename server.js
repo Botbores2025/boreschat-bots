@@ -8,7 +8,7 @@ const path    = require('path');
 const fs      = require('fs');
 
 // ─── MÓDULOS DE COMANDOS ──────────────────────────────────────────────────────
-const { adm, jogos, usuario } = require('./comandos');
+const { adm, jogos, usuario, sistema } = require('./comandos');
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
@@ -166,9 +166,10 @@ async function processarComando(msgDoc, grupoId, botDados) {
       : '• Nenhum comando criado ainda';
     const textoMenu = `╔══════════════════╗\n🤖  *${botDadosAtual.nome}*\n╚══════════════════╝\n\nOla, *${autorNome}*! 👋\n\n📋 *COMANDOS DISPONÍVEIS:*\n${listaComandos}\n\n👇 Escolha uma opção:`;
     const botoes = [
-      { label: '🎮 Jogos',   comando: '/jogos' },
-      { label: '⚡ Comandos', comando: '/cmds'  },
-      { label: '🏓 Ping',    comando: '/ping'   },
+      { label: '🎮 Jogos',    comando: '/jogos'   },
+      { label: '👤 Perfil',   comando: '/perfil'  },
+      { label: '💰 Economia', comando: '/daily'   },
+      { label: '🏆 Ranking',  comando: '/ranking' },
     ];
     await enviarMensagemBot(grupoId, textoMenu, botDadosAtual, {
       replyTo,
@@ -293,6 +294,36 @@ async function processarComando(msgDoc, grupoId, botDados) {
     return;
   }
 
+  // ─── SISTEMA ─────────────────────────────────────────────────────────────
+  if (comando === '/perfil') {
+    await sistema.perfil.mostrarPerfil({ grupoId, userId: dado.enviado_por, autorId: dado.enviado_por, autorNome, foto: dado.foto || '', args, nomeGrupo, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/ranking') {
+    await sistema.ranking.mostrarRanking({ grupoId, args, nomeGrupo, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/daily') {
+    await sistema.economia.daily({ grupoId, userId: dado.enviado_por, autorNome, foto: dado.foto || '', botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/trabalhar') {
+    await sistema.economia.trabalhar({ grupoId, userId: dado.enviado_por, autorNome, foto: dado.foto || '', botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/roubar') {
+    await sistema.economia.roubar({ grupoId, userId: dado.enviado_por, autorNome, foto: dado.foto || '', args, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/loja') {
+    await sistema.economia.loja({ grupoId, userId: dado.enviado_por, autorNome, foto: dado.foto || '', args, botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+  if (comando === '/moedas' || comando === '/saldo') {
+    await sistema.economia.saldo({ grupoId, userId: dado.enviado_por, autorNome, foto: dado.foto || '', botDados: botDadosAtual, replyTo, enviarMensagemBot, db });
+    return;
+  }
+
   // ─── INFO ────────────────────────────────────────────────────────────────
   if (comando === '/info') {
     const keys   = Object.keys(comandosAtuais);
@@ -328,6 +359,23 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
       if (msgId === ultimoMsgIdProcessado) return;
       if (dado.ehBot) return;
+
+      // ─── XP AUTOMATICO POR MENSAGEM ──────────────────────────────────────
+      if (dado.enviado_por && dado.nome) {
+        try {
+          let botAtivXP = botDados;
+          const bdXP = await db.collection('bots').doc(botDados.token).get();
+          if (bdXP.exists) botAtivXP = { ...botDados, ...bdXP.data() };
+          const statsXP = await sistema.xp.adicionarXP(
+            db, grupoId, dado.enviado_por, dado.nome, dado.foto || '',
+            'mensagem', enviarMensagemBot, botAtivXP
+          );
+          if (statsXP.levelUp) {
+            const st = await sistema.xp.getStats(db, grupoId, dado.enviado_por);
+            if (st) await sistema.conquistas.verificarConquistas(db, grupoId, dado.enviado_por, st, enviarMensagemBot, botAtivXP);
+          }
+        } catch (_) {}
+      }
 
       // ─── Verifica resposta de quiz ou decisao A/B ─────────────────────────
       const txtUpper      = (dado.texto || '').trim().replace(/^\//, '').toUpperCase();

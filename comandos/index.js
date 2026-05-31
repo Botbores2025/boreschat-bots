@@ -20,8 +20,16 @@ const paciencia   = require('./jogos/paciencia');
 const musica      = require('./usuario/musica');
 const gemini      = require('./usuario/gemini');
 
+// ─── SISTEMA ─────────────────────────────────────────────────
+const xp          = require('./sistema/xp');
+const conquistas  = require('./sistema/conquistas');
+const economia    = require('./sistema/economia');
+const perfil      = require('./sistema/perfil');
+const ranking     = require('./sistema/ranking');
+
 module.exports = {
-  adm:    { limpar, banir, remover, editarGrupo, adicionar },
-  jogos:  { dado, quiz, tictac, campoMinado, paciencia },
+  adm:     { limpar, banir, remover, editarGrupo, adicionar },
+  jogos:   { dado, quiz, tictac, campoMinado, paciencia },
   usuario: { musica, gemini },
+  sistema: { xp, conquistas, economia, perfil, ranking },
 };
