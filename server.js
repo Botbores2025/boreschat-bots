@@ -150,12 +150,6 @@ async function processarComando(msgDoc, grupoId, botDados) {
 
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
 
-  // ─── VERIFICA RESPOSTA DE QUIZ (A, B, C ou D) ────────────────────────────
-  const respostaQuiz = await jogos.quiz.verificarResposta({
-    grupoId, texto, autorNome, userId: dado.enviado_por, botDados: botDadosAtual, enviarMensagemBot
-  });
-  if (respostaQuiz) return;
-
   // ─── COMANDO CUSTOMIZADO ─────────────────────────────────────────────────
   if (comandosAtuais[cmdSemBarra]) {
     let resposta = comandosAtuais[cmdSemBarra].resposta;
@@ -341,6 +335,30 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
       // Ignora mensagens do bot
       if (dado.ehBot) return;
+
+      // ─── Verifica resposta de quiz ANTES do check de / ───────────────────
+      // Permite que usuário responda A, B, C ou D sem precisar de /
+      const txtUpper = (dado.texto || '').trim().toUpperCase();
+      if (['A','B','C','D'].includes(txtUpper) && jogos.quiz.quizAtivo[grupoId]) {
+        if (msgId === ultimoMsgIdProcessado) return;
+        ultimoMsgIdProcessado = msgId;
+        // Recarrega bot atualizado
+        let botAtualizado = botDados;
+        try {
+          const bd = await db.collection('bots').doc(botDados.token).get();
+          if (bd.exists) botAtualizado = { ...botDados, ...bd.data() };
+        } catch (_) {}
+        await jogos.quiz.verificarResposta({
+          grupoId,
+          texto: txtUpper,
+          autorNome: dado.nome || 'Membro',
+          userId: dado.enviado_por,
+          botDados: botAtualizado,
+          enviarMensagemBot,
+        });
+        return;
+      }
+
       if (!dado.texto?.startsWith('/')) return;
 
       // Marca como processada ANTES de executar (evita duplo disparo)
