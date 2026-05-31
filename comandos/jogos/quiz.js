@@ -29,8 +29,9 @@ const F_BOLD = (size) => `bold ${size}px Quiz, Arial, sans-serif`;
 const F_REG  = (size) => `${size}px Quiz, Arial, sans-serif`;
 
 // ─── ESTADO ──────────────────────────────────────────────────────────────────
-const quizAtivo = {};
-const placar    = {};
+const quizAtivo      = {}; // grupoId -> { pergunta, timer, ... }
+const aguardandoDecisao = {}; // grupoId -> { userId, nome } aguardando A ou B apos erro
+const placar         = {};
 
 function aleatorio(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
@@ -430,6 +431,45 @@ async function iniciarQuiz({ grupoId, autorNome, autorId, nomeGrupo, botDados, r
 }
 
 async function verificarResposta({ grupoId, texto, autorNome, userId, nomeGrupo, botDados, enviarMensagemBot }) {
+  // ─── Se esta aguardando decisao apos erro (A=continuar B=nova partida) ───
+  if (aguardandoDecisao[grupoId]) {
+    const decisaoMatch = texto.trim().toUpperCase().match(/\b([AB])\b/);
+    if (!decisaoMatch) return false;
+    const decisao = decisaoMatch[1];
+    const info    = aguardandoDecisao[grupoId];
+    delete aguardandoDecisao[grupoId];
+
+    if (decisao === 'A') {
+      // Continua de onde parou
+      const pergunta = aleatorio(PERGS);
+      const timer = setTimeout(async () => {
+        if (!quizAtivo[grupoId]) return;
+        const q = quizAtivo[grupoId];
+        delete quizAtivo[grupoId];
+        await enviarMensagemBot(grupoId,
+          `Tempo esgotado! A resposta era ${q.pergunta.r} — ${q.pergunta.e}`,
+          botDados
+        );
+      }, 20000);
+      quizAtivo[grupoId] = { pergunta, timer, iniciadorId: info.userId, iniciadorNome: info.nome };
+      const nomeArq = gerarImagemPergunta({ pergunta, nomeUsuario: info.nome, nomeGrupo, segundos: 20 });
+      await enviarMensagemBot(grupoId,
+        `Continuando! Responda A, B, C ou D (20s)`,
+        botDados,
+        { fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
+      );
+    } else {
+      // Nova partida — zera placar do grupo
+      delete placar[grupoId];
+      await enviarMensagemBot(grupoId,
+        `Nova partida iniciada! Use /quiz para comecar.`,
+        botDados
+      );
+    }
+    return true;
+  }
+
+  // ─── Resposta normal do quiz ─────────────────────────────────────────────
   const quiz = quizAtivo[grupoId];
   if (!quiz) return false;
 
@@ -446,11 +486,11 @@ async function verificarResposta({ grupoId, texto, autorNome, userId, nomeGrupo,
 
   const nomeArq = gerarImagemResultado({
     correto,
-    nomeUsuario:    autorNome,
+    nomeUsuario:     autorNome,
     nomeGrupo,
-    explicacao:     quiz.pergunta.e,
+    explicacao:      quiz.pergunta.e,
     respostaCorreta: quiz.pergunta.r,
-    placarAtual:    getPlacar(grupoId),
+    placarAtual:     getPlacar(grupoId),
   });
 
   await enviarMensagemBot(grupoId,
@@ -460,6 +500,41 @@ async function verificarResposta({ grupoId, texto, autorNome, userId, nomeGrupo,
     botDados,
     { fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
   );
+
+  if (correto) {
+    // Acertou — envia proxima pergunta automaticamente apos 2s
+    await new Promise(r => setTimeout(r, 2000));
+    const proxima = aleatorio(PERGS);
+    const timer = setTimeout(async () => {
+      if (!quizAtivo[grupoId]) return;
+      const q = quizAtivo[grupoId];
+      delete quizAtivo[grupoId];
+      await enviarMensagemBot(grupoId,
+        `Tempo esgotado! A resposta era ${q.pergunta.r} — ${q.pergunta.e}`,
+        botDados
+      );
+    }, 20000);
+    quizAtivo[grupoId] = { pergunta: proxima, timer, iniciadorId: userId, iniciadorNome: autorNome };
+    const nomeProx = gerarImagemPergunta({ pergunta: proxima, nomeUsuario: autorNome, nomeGrupo, segundos: 20 });
+    await enviarMensagemBot(grupoId,
+      `Proxima pergunta! Responda A, B, C ou D (20s)`,
+      botDados,
+      { fotoUrl: `${BASE_URL}/uploads/${nomeProx}` }
+    );
+  } else {
+    // Errou — pergunta se quer continuar ou nova partida com botoes
+    aguardandoDecisao[grupoId] = { userId, nome: autorNome };
+    const botoes = [
+      { label: 'A) Continuar',     comando: 'A' },
+      { label: 'B) Nova Partida',  comando: 'B' },
+    ];
+    await enviarMensagemBot(grupoId,
+      `O que deseja fazer?`,
+      botDados,
+      { botoes }
+    );
+  }
+
   return true;
 }
 

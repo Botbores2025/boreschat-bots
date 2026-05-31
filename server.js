@@ -339,14 +339,13 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       // Ignora mensagens do bot
       if (dado.ehBot) return;
 
-      // ─── Verifica resposta de quiz ANTES do check de / ───────────────────
-      // Aceita: "b", "B", "responda b", "letra b", etc
+      // ─── Verifica resposta de quiz OU decisao (A/B apos erro) ─────────────
       const txtRaw   = (dado.texto || '').trim();
       const txtUpper = txtRaw.toUpperCase();
-      // Extrai a letra da resposta de qualquer formato
       const letraMatch = txtUpper.match(/\b([ABCD])\b/);
       const letraResposta = letraMatch ? letraMatch[1] : null;
-      if (letraResposta && jogos.quiz.quizAtivo[grupoId]) {
+      const temQuizOuDecisao = jogos.quiz.quizAtivo[grupoId] || jogos.quiz.aguardandoDecisao?.[grupoId];
+      if (letraResposta && temQuizOuDecisao) {
         if (msgId === ultimoMsgIdProcessado) return;
         ultimoMsgIdProcessado = msgId;
         // Recarrega bot atualizado
