@@ -291,20 +291,18 @@ async function handleMenu({ grupoId, autorNome, nomeGrupo, botDados, replyTo, en
     { label: 'Ping',     comando: '/ping'     },
   ];
 
-  const cats      = Object.values(CATEGORIAS);
-  const lista     = cats.map(c => `${c.label}: ${c.cmds.map(x => x.cmd).join(' ')}`).join('\n');
-  const textoMenu = `${getSaudacao()}, *${autorNome}*!\n\n*${settings.BOT_NAME}* v${settings.BOT_VERSION}\n\n${lista}\n\nEscolha uma opcao:`;
-
   try {
     const nomeArq = await gerarImagemMenu({ autorNome, nomeGrupo, fotoBot, menuFoto });
-    await enviarMensagemBot(grupoId, textoMenu, botDados, {
+    // Manda SÓ a imagem + botões, sem texto
+    await enviarMensagemBot(grupoId, '', botDados, {
       replyTo,
       fotoUrl: `${BASE_URL}/uploads/${nomeArq}`,
       botoes,
     });
   } catch (e) {
     console.error('[Menu] Erro canvas:', e.message);
-    await enviarMensagemBot(grupoId, textoMenu, botDados, { replyTo, botoes });
+    // Fallback só com botoes e texto minimo
+    await enviarMensagemBot(grupoId, `${getSaudacao()}, ${autorNome}! Escolha:`, botDados, { replyTo, botoes });
   }
 }
 

@@ -143,55 +143,17 @@ async function processarComando(msgDoc, grupoId, botDados) {
   switch (comando) {
 
     // ── MENU ─────────────────────────────────────────────────────────────────
-    case '/menu': {
-      const menuFotoUrl = botDadosAtual.menuFoto || botDadosAtual.foto || '';
-      const keysMenu    = Object.keys(comandosAtuais);
-      const listaCustom = keysMenu.length > 0
-        ? keysMenu.map(k => `/${k}`).join(' | ')
-        : 'Nenhum customizado';
-      const textoMenuPrincipal = `🤖 *${botDadosAtual.nome}*\n\nOla, *${autorNome}*! 👋\n\nComandos: ${listaCustom}\n\n/jogos /perfil /daily /ranking /ping /info`;
-      const botoesMenu = [
-        { label: 'Jogos',    comando: '/jogos'    },
-        { label: 'Perfil',   comando: '/perfil'   },
-        { label: 'Economia', comando: '/daily'    },
-        { label: 'Ranking',  comando: '/ranking'  },
-        { label: 'Ping',     comando: '/ping'     },
-      ];
-      // Manda texto primeiro (sempre aparece)
-      await enviarMensagemBot(grupoId, textoMenuPrincipal, botDadosAtual, { replyTo });
-      // Manda botoes separado
-      await enviarMensagemBot(grupoId, 'Escolha uma opcao:', botDadosAtual, {
-        botoes: botoesMenu,
-        ...(menuFotoUrl ? { fotoUrl: menuFotoUrl } : {}),
-      });
+    case '/menu':
+      await menu.handleMenu(ctx);
       break;
-    }
 
-    case '/jogos': {
-      const botoesJogos = [
-        { label: 'Dado',        comando: '/dado'      },
-        { label: 'Quiz',        comando: '/quiz'      },
-        { label: 'Velha',       comando: '/velha'     },
-        { label: 'Campo Minado',comando: '/minas'     },
-        { label: 'Paciencia',   comando: '/paciencia' },
-        { label: 'Placar',      comando: '/placar'    },
-      ];
-      await enviarMensagemBot(grupoId,
-        `🎮 *Jogos do ${botDadosAtual.nome}*\n\nEscolha um jogo:`,
-        botDadosAtual, { replyTo, botoes: botoesJogos }
-      );
+    case '/jogos':
+      await menu.handleJogos(ctx);
       break;
-    }
 
-    case '/cmds': {
-      const keysCmd = Object.keys(comandosAtuais);
-      const listaCmd = keysCmd.length > 0
-        ? keysCmd.map(k => `• /${k} — ${comandosAtuais[k].descricao || comandosAtuais[k].resposta?.substring(0,30)}`).join('\n')
-        : 'Nenhum comando customizado.\nAcesse o painel web para adicionar!';
-      const textoCmds = `📋 *${botDadosAtual.nome}* — Comandos\n\n${listaCmd}\n\n📌 *Padrao:*\n• /ping • /menu • /jogos • /perfil\n• /daily • /trabalhar • /roubar • /loja\n• /ranking • /quiz • /dado • /velha\n• /minas • /paciencia • /limpar • /info`;
-      await enviarMensagemBot(grupoId, textoCmds, botDadosAtual, { replyTo });
+    case '/cmds':
+      await menu.handleCmds({ ...ctx, comandosCustom: comandosAtuais });
       break;
-    }
 
     // ── PING / INFO ───────────────────────────────────────────────────────────
     case '/ping': {
@@ -257,9 +219,9 @@ async function processarComando(msgDoc, grupoId, botDados) {
     case '/minas': {
       const jogoMinas = jogos.campoMinado.jogos[grupoId];
       if (jogoMinas && args) {
-        await jogos.campoMinado.revelar({ ...ctx, autorId: dado.enviado_por });
+        await jogos.campoMinado.revelar({ ...ctx, autorId: dado.enviado_por, nomeGrupo });
       } else {
-        await jogos.campoMinado.iniciarJogo({ ...ctx, autorId: dado.enviado_por });
+        await jogos.campoMinado.iniciarJogo({ ...ctx, autorId: dado.enviado_por, nomeGrupo });
       }
       break;
     }
