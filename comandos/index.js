@@ -34,6 +34,6 @@ module.exports = {
   menu,
   adm:     { limpar, banir, remover, editarGrupo, adicionar },
   jogos:   { dado, quiz, tictac, campoMinado, paciencia },
-  usuario: { musica, gemini,climas },
+  usuario: { musica, gemini,clima },
   sistema: { xp, conquistas, economia, perfil, ranking },
 };
