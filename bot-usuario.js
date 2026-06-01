@@ -56,7 +56,32 @@ async function responder(db, admin, conversaId, texto) {
       lido: false, entregue: true,
     });
     console.log(`[Bot] Respondeu: "${resp.substring(0, 50)}"`);
-  } catch (e) { console.error('[Bot] Erro:', e.message); }
+  } catch (e) { console.error('[Bot] Erro ao responder:', e.message); }
+}
+
+const processadas = new Set();
+const ouvindo     = new Set();
+
+function ouvirConversa(db, admin, conversaId) {
+  if (ouvindo.has(conversaId)) return;
+  ouvindo.add(conversaId);
+  console.log(`[Bot] Ouvindo conversa: ${conversaId}`);
+  let primeira = true;
+  db.collection('conversas').doc(conversaId).collection('mensagens')
+    .orderBy('timestamp', 'desc').limit(1)
+    .onSnapshot(async (snap) => {
+      if (primeira) { primeira = false; return; }
+      if (snap.empty) return;
+      const doc  = snap.docs[0];
+      const dado = doc.data();
+      if (dado.enviado_por === BOT_ID) return;
+      if (processadas.has(doc.id)) return;
+      processadas.add(doc.id);
+      const texto = (dado.texto || '').trim();
+      if (!texto) return;
+      console.log(`[Bot] Nova msg: "${texto}"`);
+      await responder(db, admin, conversaId, texto);
+    });
 }
 
 async function iniciarBotUsuario(db, admin) {
@@ -64,40 +89,36 @@ async function iniciarBotUsuario(db, admin) {
 
   // Online 24h
   const online = async () => {
-    try { await db.collection('usuarios').doc(BOT_ID).update({ statusConexao: 'online', online: true, ultimaVez: admin.firestore.FieldValue.serverTimestamp() }); } catch (_) {}
+    try {
+      await db.collection('usuarios').doc(BOT_ID).update({
+        statusConexao: 'online', online: true,
+        ultimaVez: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (_) {}
   };
   await online();
   setInterval(online, 30000);
 
-  const processadas = new Set();
-  const ouvindo     = new Set();
-
-  const ouvirConversa = (conversaId) => {
-    if (ouvindo.has(conversaId)) return;
-    ouvindo.add(conversaId);
-    console.log(`[Bot] Ouvindo: ${conversaId}`);
-    let primeira = true;
-    db.collection('conversas').doc(conversaId).collection('mensagens')
-      .orderBy('timestamp', 'desc').limit(1)
-      .onSnapshot(async (snap) => {
-        if (primeira) { primeira = false; return; }
-        if (snap.empty) return;
-        const doc  = snap.docs[0];
-        const dado = doc.data();
-        if (dado.enviado_por === BOT_ID) return;
-        if (processadas.has(doc.id)) return;
-        processadas.add(doc.id);
-        const texto = (dado.texto || '').trim();
-        if (!texto) return;
-        console.log(`[Bot] Msg: "${texto}"`);
-        await responder(db, admin, conversaId, texto);
-      });
-  };
-
-  // Ouve todas as conversas do Firestore e filtra pelo ID do bot
-  db.collection('conversas').onSnapshot((snap) => {
+  // Busca conversas existentes com o bot no banco
+  // Usa get() para pegar todas as conversas uma vez
+  try {
+    const snap = await db.collection('conversas').get();
     snap.docs.forEach(d => {
-      if (d.id.includes(BOT_ID)) ouvirConversa(d.id);
+      if (d.id.includes(BOT_ID)) {
+        ouvirConversa(db, admin, d.id);
+      }
+    });
+    console.log(`[Bot] ${snap.docs.filter(d => d.id.includes(BOT_ID)).length} conversa(s) encontrada(s)`);
+  } catch (e) {
+    console.error('[Bot] Erro ao buscar conversas:', e.message);
+  }
+
+  // Ouve novas conversas em tempo real
+  db.collection('conversas').onSnapshot((snap) => {
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added' && change.doc.id.includes(BOT_ID)) {
+        ouvirConversa(db, admin, change.doc.id);
+      }
     });
   });
 
