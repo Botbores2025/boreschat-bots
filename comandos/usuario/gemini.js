@@ -18,7 +18,9 @@ module.exports = async function gemini({ grupoId, args, autorNome, botDados, rep
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || '';
+  // Lê a key no momento da chamada
+  const apiKey = process.env['GEMINI_API_KEY'] || process.env.GEMINI_API_KEY || '';
+  console.log('[Gemini] Todas envs:', Object.keys(process.env).filter(k => k.includes('GEMINI')));
   console.log('[Gemini] API Key presente:', !!apiKey, '| Tamanho:', apiKey.length);
 
   if (!apiKey) {
