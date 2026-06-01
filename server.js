@@ -11,7 +11,8 @@ const { v4: uuidv4 } = require('uuid');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
-const settings = require('./settings.json');
+const settings    = require('./settings.json');
+const { iniciarBotUsuario } = require('./bot-usuario');
 
 // ─── CARREGA TODOS OS MÓDULOS DE COMANDOS ────────────────────────────────────
 const { menu, adm, jogos, usuario, sistema } = require('./comandos');
@@ -584,4 +585,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`🚀 ${settings.BOT_NAME} v${settings.BOT_VERSION} rodando na porta ${PORT}`);
   await carregarBotsAtivos();
+  await iniciarBotUsuario(db, admin);
 });
