@@ -1,84 +1,66 @@
 // ═══════════════════════════════════════════════════════════════
 // BOT-USUARIO.JS — Bot como usuario real no BoresChat
-// - Mantém online 24h
-// - Responde mensagens privadas com IA (Gemini)
-// - Entra em grupos automaticamente por convite
 // ═══════════════════════════════════════════════════════════════
 
-const BOT_ID    = 'BOT_BORES_OFICIAL';
-const BOT_NOME  = 'BoresBot';
-const BOT_TOKEN = 'BORES_1BF57D7481294163923C991F';
+const BOT_ID   = 'BOT_BORES_OFICIAL';
+const BOT_NOME = 'BoresBot';
+const BOT_FOTO = 'https://iili.io/C3rRxRf.jpg';
 
 const https = require('https');
 
-// ─── HELPER HTTP ─────────────────────────────────────────────────────────────
-function httpPost(hostname, path, body, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
-    const req  = https.request({
-      hostname, path, method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), ...headers },
-    }, (res) => {
-      let raw = '';
-      res.on('data', c => raw += c);
-      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch (_) { resolve(raw); } });
-    });
-    req.on('error', reject);
-    req.write(data);
-    req.end();
-  });
-}
-
-// ─── GEMINI IA ───────────────────────────────────────────────────────────────
-async function perguntarGemini(pergunta) {
+// ─── GEMINI ──────────────────────────────────────────────────────────────────
+async function perguntarGemini(texto) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return 'Oi! Sou o BoresBot, assistente do BoresChat. Como posso ajudar?';
-
+  if (!apiKey) return null;
   try {
-    const resp = await httpPost(
-      'generativelanguage.googleapis.com',
-      `/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
-      {
-        contents: [{
-          parts: [{
-            text: `Voce e o BoresBot, assistente oficial do BoresChat. 
-Seja simpatico, curto e direto. Responda em portugues.
-Nao use markdown. Maximo 3 frases.
-
-Pergunta do usuario: ${pergunta}`
-          }]
-        }]
-      }
-    );
-    return resp?.candidates?.[0]?.content?.parts?.[0]?.text || 'Desculpe, nao entendi. Pode repetir?';
-  } catch (e) {
-    console.error('[BotUsuario] Gemini erro:', e.message);
-    return 'Oi! Estou aqui para ajudar. O que precisas?';
-  }
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: `Voce e o BoresBot, assistente oficial do BoresChat. Seja simpatico, curto e direto. Responda em portugues sem markdown. Maximo 2 frases.\n\nUsuario disse: ${texto}` }] }]
+    });
+    return await new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: 'generativelanguage.googleapis.com',
+        path:     `/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+        method:   'POST',
+        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, (res) => {
+        let raw = '';
+        res.on('data', c => raw += c);
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(raw);
+            resolve(data?.candidates?.[0]?.content?.parts?.[0]?.text || null);
+          } catch (_) { resolve(null); }
+        });
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+  } catch (e) { return null; }
 }
 
-// ─── RESPOSTAS AUTOMATICAS (sem Gemini) ──────────────────────────────────────
-const RESPOSTAS_AUTO = [
-  { pattern: /oi|ola|hello|hey|boa/i,      resp: 'Oi! Tudo bem? Sou o BoresBot, assistente do BoresChat! Como posso ajudar?' },
-  { pattern: /tudo|como vai|como esta/i,   resp: 'Estou otimo, obrigado! Disponivel 24h para ajudar!' },
-  { pattern: /comando|ajuda|help/i,        resp: 'No grupo voce pode usar /menu para ver todos os comandos disponíveis!' },
-  { pattern: /grupo|entrar|convite/i,      resp: 'Me adicione ao seu grupo! Va em Gerenciar Grupo → Bots → cole meu token: BORES_1BF57D7481294163923C991F' },
-  { pattern: /quem e|quem és|quem es/i,   resp: 'Sou o BoresBot! Assistente oficial do BoresChat, aqui para ajudar 24h!' },
-  { pattern: /obrigad/i,                   resp: 'De nada! Fico feliz em ajudar! Se precisar de algo e so chamar!' },
+// ─── RESPOSTAS AUTOMATICAS ────────────────────────────────────────────────────
+const AUTO = [
+  { p: /^(oi|ola|ola|hello|hey|e ai|eai|bom dia|boa tarde|boa noite|boa madrugada)/i, r: `Oi! Sou o BoresBot, assistente oficial do BoresChat! Como posso ajudar?` },
+  { p: /tudo|como vai|como ta|como esta/i, r: `Estou otimo! Disponivel 24h para ajudar no BoresChat!` },
+  { p: /ajuda|help|comando/i, r: `No grupo use /menu para ver todos os comandos! Se quiser me adicionar a um grupo va em Gerenciar Grupo → Bots.` },
+  { p: /quem e(s)? voce|quem es tu/i, r: `Sou o BoresBot! Assistente oficial do BoresChat, criado para ajudar 24h!` },
+  { p: /obrigad/i, r: `De nada! Fico feliz em ajudar! Se precisar e so chamar!` },
+  { p: /grupo|entrar|convite|adicionar/i, r: `Para me adicionar ao seu grupo: Gerenciar Grupo → Bots → cole o token BORES_1BF57D7481294163923C991F` },
 ];
 
-function respostaAutomatica(texto) {
-  for (const r of RESPOSTAS_AUTO) {
-    if (r.pattern.test(texto)) return r.resp;
+function respostaAuto(texto) {
+  for (const a of AUTO) {
+    if (a.p.test(texto.trim())) return a.r;
   }
   return null;
 }
 
-// ─── INICIALIZA BOT USUARIO ───────────────────────────────────────────────────
+// ─── INICIALIZA ───────────────────────────────────────────────────────────────
 async function iniciarBotUsuario(db, admin) {
   console.log(`🤖 BotUsuario "${BOT_NOME}" iniciando...`);
 
-  // 1. Mantém online 24h — atualiza statusConexao a cada 30s
+  // 1. Mantém online 24h
   const manterOnline = async () => {
     try {
       await db.collection('usuarios').doc(BOT_ID).update({
@@ -86,94 +68,96 @@ async function iniciarBotUsuario(db, admin) {
         online:        true,
         ultimaVez:     admin.firestore.FieldValue.serverTimestamp(),
       });
-    } catch (e) { console.error('[BotUsuario] Erro manter online:', e.message); }
+    } catch (e) {}
   };
-
   await manterOnline();
-  setInterval(manterOnline, 30000); // a cada 30 segundos
+  setInterval(manterOnline, 30000);
   console.log('✅ BotUsuario online 24h ativado');
 
-  // 2. Listener de conversas privadas
-  let primeiraExecConversas = true;
-  const conversasProcessadas = new Set();
+  // 2. Ouve conversas pelo ID — formato: BOT_BORES_OFICIAL_USERID ou USERID_BOT_BORES_OFICIAL
+  const msgProcessadas = new Set();
+  const conversasOuvindo = new Set();
 
-  db.collection('conversas')
-    .where('participantes', 'array-contains', BOT_ID)
-    .onSnapshot(async (snap) => {
-      if (primeiraExecConversas) { primeiraExecConversas = false; return; }
+  const ouvirConversa = (conversaId) => {
+    if (conversasOuvindo.has(conversaId)) return;
+    conversasOuvindo.add(conversaId);
 
-      for (const conversaDoc of snap.docs) {
-        const conversaId = conversaDoc.id;
+    let primeira = true;
+    db.collection('conversas').doc(conversaId)
+      .collection('mensagens')
+      .orderBy('timestamp', 'desc')
+      .limit(1)
+      .onSnapshot(async (snap) => {
+        if (primeira) { primeira = false; return; }
+        if (snap.empty) return;
 
-        // Listener de mensagens da conversa
-        db.collection('conversas').doc(conversaId)
-          .collection('mensagens')
-          .orderBy('timestamp', 'desc')
-          .limit(1)
-          .onSnapshot(async (msgSnap) => {
-            if (msgSnap.empty) return;
+        const msgDoc = snap.docs[0];
+        const msgId  = msgDoc.id;
+        const dado   = msgDoc.data();
 
-            const msgDoc  = msgSnap.docs[0];
-            const msgId   = msgDoc.id;
-            const dado    = msgDoc.data();
+        if (dado.enviado_por === BOT_ID) return;
+        if (msgProcessadas.has(msgId)) return;
+        msgProcessadas.add(msgId);
 
-            // Ignora mensagens do proprio bot
-            if (dado.enviado_por === BOT_ID) return;
-            if (conversasProcessadas.has(msgId)) return;
-            conversasProcessadas.add(msgId);
+        const texto = (dado.texto || '').trim();
+        if (!texto) return;
 
-            const texto = (dado.texto || '').trim();
-            if (!texto) return;
+        console.log(`[BotUsuario] "${texto}" de ${dado.enviado_por}`);
 
-            console.log(`[BotUsuario] Mensagem privada: "${texto}"`);
-
-            // Simula digitando
-            try {
-              await db.collection('usuarios').doc(BOT_ID).update({
-                digitando:          true,
-                digitandoTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-              });
-            } catch (_) {}
-
-            // Aguarda 1-2s para parecer humano
-            const delay = 1000 + Math.random() * 1500;
-            await new Promise(r => setTimeout(r, delay));
-
-            // Gera resposta
-            let resposta = respostaAutomatica(texto);
-            if (!resposta) {
-              resposta = await perguntarGemini(texto);
-            }
-
-            // Para digitando
-            try {
-              await db.collection('usuarios').doc(BOT_ID).update({
-                digitando: false,
-              });
-            } catch (_) {}
-
-            // Envia resposta
-            try {
-              await db.collection('conversas').doc(conversaId)
-                .collection('mensagens').add({
-                  texto:       resposta,
-                  tipo:        'texto',
-                  enviado_por: BOT_ID,
-                  nome:        BOT_NOME,
-                  foto:        'https://iili.io/C3rRxRf.jpg',
-                  timestamp:   admin.firestore.FieldValue.serverTimestamp(),
-                  lido:        false,
-                  entregue:    true,
-                });
-              console.log(`[BotUsuario] Respondeu: "${resposta.substring(0, 50)}"`);
-            } catch (e) {
-              console.error('[BotUsuario] Erro ao responder:', e.message);
-            }
+        // Simula digitando
+        try {
+          await db.collection('usuarios').doc(BOT_ID).update({
+            digitando:          true,
+            digitandoTimestamp: admin.firestore.FieldValue.serverTimestamp(),
           });
-      }
+        } catch (_) {}
+
+        // Delay humano
+        await new Promise(r => setTimeout(r, 1000 + Math.random() * 1500));
+
+        // Gera resposta
+        let resposta = respostaAuto(texto);
+        if (!resposta) resposta = await perguntarGemini(texto);
+        if (!resposta) resposta = 'Entendi! Posso ajudar com mais alguma coisa?';
+
+        // Para digitando
+        try {
+          await db.collection('usuarios').doc(BOT_ID).update({ digitando: false });
+        } catch (_) {}
+
+        // Envia resposta
+        try {
+          await db.collection('conversas').doc(conversaId)
+            .collection('mensagens').add({
+              texto,       tipo: 'texto',
+              texto:       resposta,
+              enviado_por: BOT_ID,
+              nome:        BOT_NOME,
+              foto:        BOT_FOTO,
+              timestamp:   admin.firestore.FieldValue.serverTimestamp(),
+              lido:        false,
+              entregue:    true,
+            });
+          console.log(`[BotUsuario] Respondeu: "${resposta.substring(0, 60)}"`);
+        } catch (e) {
+          console.error('[BotUsuario] Erro ao responder:', e.message);
+        }
+      });
+  };
+
+  // 3. Detecta novas conversas onde o bot e participante
+  // O ID da conversa segue o padrao: ID1_ID2 (ordenado alfabeticamente)
+  // Ouve todas as conversas que começam com BOT_BORES_OFICIAL
+  db.collection('conversas')
+    .onSnapshot((snap) => {
+      snap.docs.forEach(d => {
+        const id = d.id;
+        if (id.includes(BOT_ID)) {
+          ouvirConversa(id);
+        }
+      });
     });
 
-  // 3. Listener de convites de grupo (mensagens privadas com link de grupo)
   console.log('✅ BotUsuario listeners ativos');
 }
 
