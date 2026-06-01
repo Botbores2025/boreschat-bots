@@ -200,6 +200,10 @@ async function processarComando(msgDoc, grupoId, botDados) {
       await adm.fecharGrupo.abrir({ ...ctx });
       break;
 
+    case '/bemvindo':
+      await sistema.boasVindas.configurarBoasVindas({ ...ctx, autorId: dado.enviado_por });
+      break;
+
     // ── JOGOS ─────────────────────────────────────────────────────────────────
     case '/dado':
       await jogos.dado(ctx);

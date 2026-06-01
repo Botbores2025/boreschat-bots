@@ -201,22 +201,36 @@ async function gerarImagemBoasVindas({ nome, foto, nomeGrupo, totalMembros }) {
 // ─── HANDLER ─────────────────────────────────────────────────────────────────
 async function enviarBoasVindas({ grupoId, userId, nomeGrupo, totalMembros, botDados, db, enviarMensagemBot }) {
   try {
+    // Verifica se boas-vindas está ativo no grupo
+    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+    const boasVindasAtivo = grupoDoc.data()?.boasVindasAtivo;
+    
+    // Se nunca foi configurado, ativa por padrão
+    // Se foi explicitamente desativado (false), não manda
+    if (boasVindasAtivo === false) {
+      console.log('[BoasVindas] Desativado no grupo', grupoId);
+      return;
+    }
+
     // Busca dados reais do usuario no Firestore
     let nome = 'Membro';
     let foto = '';
+    let userId2 = userId;
     try {
       const userDoc = await db.collection('usuarios').doc(userId).get();
       if (userDoc.exists) {
         const ud = userDoc.data();
-        nome = ud.nome       || 'Membro';
-        foto = ud.fotoPerfil || '';
+        nome     = ud.nome       || 'Membro';
+        foto     = ud.fotoPerfil || '';
+        userId2  = userId;
       }
     } catch (_) {}
 
     const nomeArq = await gerarImagemBoasVindas({ nome, foto, nomeGrupo, totalMembros });
 
+    // Menciona o usuario na mensagem
     await enviarMensagemBot(grupoId,
-      `Bem-vindo(a) ao grupo, ${nome}! Use /menu para ver os comandos.`,
+      `Seja bem-vindo(a) @${nome}! Voce e o membro numero ${totalMembros} do grupo. Use /menu para ver os comandos.`,
       botDados,
       { fotoUrl: `${BASE_URL}/uploads/${nomeArq}` }
     );
@@ -229,6 +243,10 @@ async function enviarBoasVindas({ grupoId, userId, nomeGrupo, totalMembros, botD
   } catch (e) {
     console.error('[BoasVindas] Erro:', e.message);
     // Fallback texto
+    try {
+      const grupoDoc2 = await db.collection('grupos').doc(grupoId).get();
+      if (grupoDoc2.data()?.boasVindasAtivo === false) return;
+    } catch (_) {}
     await enviarMensagemBot(grupoId,
       `Bem-vindo(a) ao grupo! Use /menu para ver os comandos.`,
       botDados
@@ -236,4 +254,49 @@ async function enviarBoasVindas({ grupoId, userId, nomeGrupo, totalMembros, botD
   }
 }
 
-module.exports = { enviarBoasVindas };
+// ─── COMANDO /bemvindo ────────────────────────────────────────
+async function configurarBoasVindas({ grupoId, args, autorId, autorNome, botDados, replyTo, enviarMensagemBot, db }) {
+  // Verifica se eh ADM
+  const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+  const admins   = grupoDoc.data()?.admins || [];
+  if (!admins.includes(autorId)) {
+    await enviarMensagemBot(grupoId,
+      'Atencao! Este comando so pode ser usado por Administradores.',
+      botDados, { replyTo }
+    );
+    return;
+  }
+
+  const subCmd = (args || '').trim().toLowerCase();
+
+  if (subCmd === 'on' || subCmd === 'ativar' || subCmd === 'ligar') {
+    await db.collection('grupos').doc(grupoId).update({ boasVindasAtivo: true });
+    await enviarMensagemBot(grupoId,
+      'Boas-vindas ATIVADO! Novos membros serao recebidos automaticamente.',
+      botDados, { replyTo }
+    );
+    return;
+  }
+
+  if (subCmd === 'off' || subCmd === 'desativar' || subCmd === 'desligar') {
+    await db.collection('grupos').doc(grupoId).update({ boasVindasAtivo: false });
+    await enviarMensagemBot(grupoId,
+      'Boas-vindas DESATIVADO! Novos membros nao serao recebidos.',
+      botDados, { replyTo }
+    );
+    return;
+  }
+
+  // Status atual
+  const ativo = grupoDoc.data()?.boasVindasAtivo !== false;
+  await enviarMensagemBot(grupoId,
+    `Boas-vindas: ${ativo ? 'ATIVO' : 'DESATIVADO'}
+
+Use:
+/bemvindo on — ativar
+/bemvindo off — desativar`,
+    botDados, { replyTo }
+  );
+}
+
+module.exports = { enviarBoasVindas, configurarBoasVindas };
