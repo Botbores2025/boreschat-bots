@@ -65,7 +65,7 @@ const ouvindo     = new Set();
 function ouvirConversa(db, admin, conversaId) {
   if (ouvindo.has(conversaId)) return;
   ouvindo.add(conversaId);
-  console.log(`[Bot] Ouvindo conversa: ${conversaId}`);
+  console.log(`[Bot] Ouvindo: ${conversaId}`);
   let primeira = true;
   db.collection('conversas').doc(conversaId).collection('mensagens')
     .orderBy('timestamp', 'desc').limit(1)
@@ -79,7 +79,7 @@ function ouvirConversa(db, admin, conversaId) {
       processadas.add(doc.id);
       const texto = (dado.texto || '').trim();
       if (!texto) return;
-      console.log(`[Bot] Nova msg: "${texto}"`);
+      console.log(`[Bot] Msg recebida: "${texto}"`);
       await responder(db, admin, conversaId, texto);
     });
 }
@@ -99,24 +99,29 @@ async function iniciarBotUsuario(db, admin) {
   await online();
   setInterval(online, 30000);
 
-  // Busca conversas existentes com o bot no banco
-  // Usa get() para pegar todas as conversas uma vez
+  // Busca subcoleções de mensagens diretamente
+  // O documento pai pode nao existir mas a subcoleção sim
+  // Usa listDocuments() que retorna referencias mesmo sem documento pai
   try {
-    const snap = await db.collection('conversas').get();
-    snap.docs.forEach(d => {
-      if (d.id.includes(BOT_ID)) {
-        ouvirConversa(db, admin, d.id);
+    const conversasRef = db.collection('conversas');
+    const allDocs = await conversasRef.listDocuments();
+    
+    let encontradas = 0;
+    for (const docRef of allDocs) {
+      if (docRef.id.includes(BOT_ID)) {
+        ouvirConversa(db, admin, docRef.id);
+        encontradas++;
       }
-    });
-    console.log(`[Bot] ${snap.docs.filter(d => d.id.includes(BOT_ID)).length} conversa(s) encontrada(s)`);
+    }
+    console.log(`[Bot] ${encontradas} conversa(s) do bot encontrada(s)`);
   } catch (e) {
-    console.error('[Bot] Erro ao buscar conversas:', e.message);
+    console.error('[Bot] Erro listDocuments:', e.message);
   }
 
-  // Ouve novas conversas em tempo real
+  // Detecta novas conversas
   db.collection('conversas').onSnapshot((snap) => {
     snap.docChanges().forEach(change => {
-      if (change.type === 'added' && change.doc.id.includes(BOT_ID)) {
+      if (change.doc.id.includes(BOT_ID)) {
         ouvirConversa(db, admin, change.doc.id);
       }
     });
