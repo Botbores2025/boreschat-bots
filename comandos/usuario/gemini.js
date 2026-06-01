@@ -1,40 +1,49 @@
 // ═══════════════════════════════════════
-// USUARIO/GEMINI.JS — IA do Google Gemini
+// USUARIO/GEMINI.JS — IA BoresBot com personalidade
 // Uso: /ia pergunta aqui
 // ═══════════════════════════════════════
 
+const SYSTEM_PROMPT = `Voce e o BoresBot, assistente oficial do BoresChat.
+Fui criado e treinado por Riquefla, o desenvolvedor do BoresChat.
+Sou simpatico, divertido e prestativo. Respondo em portugues brasileiro natural.
+Quando perguntarem quem me criou: "Fui criado e treinado pelo Riquefla, desenvolvedor do BoresChat!"
+Maximo 4 frases por resposta. Sem markdown, sem asterisco, texto simples.`;
+
 module.exports = async function gemini({ grupoId, args, autorNome, botDados, replyTo, enviarMensagemBot }) {
   if (!args) {
-    await enviarMensagemBot(grupoId, '⚠️ Use: /ia sua pergunta\nEx: /ia O que é buraco negro?', botDados, { replyTo });
+    await enviarMensagemBot(grupoId,
+      'Use: /ia sua pergunta\nEx: /ia O que e um buraco negro?',
+      botDados, { replyTo }
+    );
     return;
   }
 
   const apiKey = process.env.GEMINI_API_KEY || '';
-
   if (!apiKey) {
     await enviarMensagemBot(grupoId,
-      '⚠️ Gemini não configurado.\n\nAdministrador: adicione GEMINI_API_KEY nas variáveis do Railway.',
+      'IA nao configurada. Admin: adicione GEMINI_API_KEY no Railway.',
       botDados, { replyTo }
     );
     return;
   }
 
   try {
-    await enviarMensagemBot(grupoId, `🤖 *${botDados.nome}* está pensando... ⏳`, botDados);
+    await enviarMensagemBot(grupoId, `BoresBot esta pensando...`, botDados);
 
     const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
     const body = {
       contents: [{
         parts: [{
-          text: `Você é um assistente de grupo de chat chamado ${botDados.nome}. Responda de forma curta e direta em português. Pergunta de ${autorNome}: ${args}`
+          text: `${SYSTEM_PROMPT}\n\n${autorNome} perguntou: ${args}`
         }]
-      }]
+      }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
     };
 
     const resp = await fetch(url, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body:    JSON.stringify(body),
     });
 
     const data     = await resp.json();
@@ -42,12 +51,10 @@ module.exports = async function gemini({ grupoId, args, autorNome, botDados, rep
 
     if (!resposta) throw new Error('Sem resposta da IA');
 
-    await enviarMensagemBot(grupoId,
-      `🤖 *${botDados.nome}*\n\n${resposta}`,
-      botDados, { replyTo }
-    );
+    await enviarMensagemBot(grupoId, resposta, botDados, { replyTo });
+
   } catch (e) {
     console.error('[gemini]', e.message);
-    await enviarMensagemBot(grupoId, '❌ Erro ao consultar a IA.', botDados, { replyTo });
+    await enviarMensagemBot(grupoId, 'Erro ao consultar a IA. Tente novamente!', botDados, { replyTo });
   }
 };

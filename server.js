@@ -591,6 +591,58 @@ app.delete('/api/bot/:token', async (req, res) => {
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
+// ─── ROTA GEMINI IA ──────────────────────────────────────────────────────────
+app.post('/api/gemini', async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question) return res.status(400).json({ error: 'Pergunta obrigatoria' });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.json({ text: 'IA indisponivel. Configure GEMINI_API_KEY.' });
+
+    const systemPrompt = `Voce e o BoresBot, assistente oficial do BoresChat.
+Fui criado e treinado por Riquefla, desenvolvedor do BoresChat.
+Sou um assistente simpatico, divertido e prestativo.
+Respondo em portugues brasileiro de forma natural e amigavel.
+Quando perguntarem quem me criou, digo: "Fui criado e treinado pelo Riquefla, o desenvolvedor do BoresChat!"
+Maximo 3 frases por resposta. Sem markdown.`;
+
+    const https = require('https');
+    const body = JSON.stringify({
+      contents: [{
+        parts: [{ text: `${systemPrompt}
+
+Usuario perguntou: ${question}` }]
+      }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
+    });
+
+    const resposta = await new Promise((resolve, reject) => {
+      const req2 = https.request({
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, (r) => {
+        let raw = '';
+        r.on('data', c => raw += c);
+        r.on('end', () => {
+          try { resolve(JSON.parse(raw)); } catch (_) { resolve(null); }
+        });
+      });
+      req2.on('error', reject);
+      req2.write(body);
+      req2.end();
+    });
+
+    const text = resposta?.candidates?.[0]?.content?.parts?.[0]?.text;
+    res.json({ text: text || 'Nao consegui responder agora. Tente novamente!' });
+
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/', (_req, res) => {
   res.json({
     status:    'online',
