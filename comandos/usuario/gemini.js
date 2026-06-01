@@ -19,6 +19,8 @@ module.exports = async function gemini({ grupoId, args, autorNome, botDados, rep
   }
 
   const apiKey = process.env.GEMINI_API_KEY || '';
+  console.log('[Gemini] API Key presente:', !!apiKey, '| Tamanho:', apiKey.length);
+
   if (!apiKey) {
     await enviarMensagemBot(grupoId,
       'IA nao configurada. Admin: adicione GEMINI_API_KEY no Railway.',
@@ -47,6 +49,7 @@ module.exports = async function gemini({ grupoId, args, autorNome, botDados, rep
     });
 
     const data     = await resp.json();
+    console.log('[Gemini] Status:', resp.status, '| Resposta:', JSON.stringify(data).substring(0, 200));
     const resposta = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!resposta) throw new Error('Sem resposta da IA');
