@@ -1,11 +1,20 @@
 // ADM/BANIR.JS
 module.exports = async function banir({ grupoId, args, autorNome, autorId, botDados, replyTo, enviarMensagemBot, db }) {
-  // Verifica se eh ADM
+  // Verifica se o autor eh ADM
   const grupoDoc = await db.collection('grupos').doc(grupoId).get();
   const admins   = grupoDoc.data()?.admins || [];
   if (!admins.includes(autorId)) {
     await enviarMensagemBot(grupoId,
       'Atencao! Este comando so pode ser usado por Administradores do grupo.',
+      botDados, { replyTo }
+    );
+    return;
+  }
+
+  // Verifica se o bot eh ADM
+  if (!admins.includes('BOT_BORES_OFICIAL')) {
+    await enviarMensagemBot(grupoId,
+      'Preciso ser Administrador para executar este comando! Peca para um ADM me promover.',
       botDados, { replyTo }
     );
     return;

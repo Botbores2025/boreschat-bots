@@ -48,6 +48,15 @@ async function fechar({ grupoId, args, autorNome, autorId, botDados, replyTo, en
     return;
   }
 
+  // Verifica se o bot eh ADM
+  if (!admins.includes('BOT_BORES_OFICIAL')) {
+    await enviarMensagemBot(grupoId,
+      'Preciso ser Administrador para executar este comando! Peca para um ADM me promover.',
+      botDados, { replyTo }
+    );
+    return;
+  }
+
   const tempoMs   = parseTempo(args);
   const tempoTexto = tempoMs ? formatarTempo(tempoMs) : 'ate ser aberto manualmente';
 

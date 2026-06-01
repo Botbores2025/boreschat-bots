@@ -10,6 +10,15 @@ module.exports = async function remover({ grupoId, args, autorNome, autorId, bot
     return;
   }
 
+  // Verifica se o bot eh ADM
+  if (!admins.includes('BOT_BORES_OFICIAL')) {
+    await enviarMensagemBot(grupoId,
+      'Preciso ser Administrador para executar este comando! Peca para um ADM me promover.',
+      botDados, { replyTo }
+    );
+    return;
+  }
+
   if (!args) {
     await enviarMensagemBot(grupoId, 'Use: /remover @nome', botDados, { replyTo });
     return;
