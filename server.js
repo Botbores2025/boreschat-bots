@@ -85,10 +85,10 @@ async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
     await db.collection('grupos').doc(grupoId).collection('mensagens').add({
       tipo:        extras.fotoUrl ? 'bot_card' : extras.botoes ? 'botoes' : 'texto',
       texto:       textoFinal,
-      enviado_por: `bot_${botDados.token}`,
-      nome:        botDados.nome || 'BoresBot',
-      foto:        botDados.foto || '',
-      ehBot:       true,
+      enviado_por: 'BOT_BORES_OFICIAL',
+      nome:        'BoresBot',
+      foto:        'https://iili.io/C3rRxRf.jpg',
+      ehBot:       false,
       timestamp:   admin.firestore.FieldValue.serverTimestamp(),
       lido:        false,
       entregue:    true,
@@ -434,6 +434,27 @@ async function iniciarListenerGrupo(grupoId, botDados) {
         return;
       }
 
+      // ─── Detecta menção @BoresBot ─────────────────────────────────────────
+      const textoMencao = (dado.texto || '').toLowerCase();
+      if (textoMencao.includes('@boresbot') || textoMencao.includes('@bores')) {
+        let botAtual = botDados;
+        try { const bd = await db.collection('bots').doc(botDados.token).get(); if (bd.exists) botAtual = { ...botDados, ...bd.data() }; } catch (_) {}
+        
+        const respostasMencao = [
+          `Oi ${dado.nome}! Me chama que eu apareço! 😄`,
+          `Presente! Como posso ajudar, ${dado.nome}?`,
+          `Olá ${dado.nome}! Use /menu para ver o que posso fazer!`,
+          `Aqui! O que precisa, ${dado.nome}? 🤖`,
+          `Chamou? Estou sempre por aqui! 😊`,
+        ];
+        const resposta = respostasMencao[Math.floor(Math.random() * respostasMencao.length)];
+        
+        // Simula digitando
+        await new Promise(r => setTimeout(r, 1000 + Math.random() * 1000));
+        await enviarMensagemBot(grupoId, resposta, botAtual, { replyTo: { id: msgId, texto: dado.texto, nome: dado.nome, enviado_por: dado.enviado_por, fotoUrl: null } });
+        return;
+      }
+
       if (!dado.texto?.startsWith('/')) return;
 
       console.log(`📨 Comando: ${dado.texto} | grupo: ${grupoId}`);
@@ -581,9 +602,61 @@ app.get('/', (_req, res) => {
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
+// ─── VIDA PRÓPRIA — Mensagens automáticas nos grupos ─────────────────────────
+const MSGS_VIDA_PROPRIA = [
+  'Bom dia pessoal! ☀️ Hoje é um ótimo dia pra jogar /quiz!',
+  'Oi galera! Não esqueçam de pegar suas moedas do dia com /daily! 💰',
+  'Alguém quer jogar /velha comigo? 🎮',
+  'Já fizeram o /daily hoje? Moedas não caem do céu! 😄',
+  'Boa tarde! Que tal um /quiz pra esquentar o cérebro? 🧠',
+  'Lembrando que quem mais mandar mensagem sobe de level mais rápido! 📈',
+  'Boa noite! Quem tá no topo do /ranking hoje? 🏆',
+  'Passando pra dizer que tô aqui 24h pra ajudar! Me chama com /menu 😊',
+];
+
+function iniciarVidaPropria() {
+  // Manda mensagem aleatória a cada 2-4 horas
+  const intervaloMin = 2 * 60 * 60 * 1000; // 2h
+  const intervaloMax = 4 * 60 * 60 * 1000; // 4h
+
+  const agendar = async () => {
+    try {
+      // Busca todos os bots ativos e seus grupos
+      const snap = await db.collection('bots').where('ativo', '==', true).get();
+      for (const docSnap of snap.docs) {
+        const bot = docSnap.data();
+        for (const grupoId of (bot.grupos || [])) {
+          try {
+            // Só manda se o grupo existir e não estiver fechado
+            const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+            if (!grupoDoc.exists) continue;
+            if (grupoDoc.data()?.grupofechado) continue;
+
+            // 30% de chance de mandar mensagem
+            if (Math.random() > 0.3) continue;
+
+            const msg = MSGS_VIDA_PROPRIA[Math.floor(Math.random() * MSGS_VIDA_PROPRIA.length)];
+            await enviarMensagemBot(grupoId, msg, bot);
+            console.log(`[VidaPropria] Mandou no grupo ${grupoId}: "${msg.substring(0, 40)}"`);
+          } catch (e) {}
+        }
+      }
+    } catch (e) { console.error('[VidaPropria] Erro:', e.message); }
+
+    // Agenda próxima execução
+    const proximo = intervaloMin + Math.random() * (intervaloMax - intervaloMin);
+    setTimeout(agendar, proximo);
+  };
+
+  // Primeira execução após 30 minutos
+  setTimeout(agendar, 30 * 60 * 1000);
+  console.log('✅ Vida própria do bot ativada!');
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`🚀 ${settings.BOT_NAME} v${settings.BOT_VERSION} rodando na porta ${PORT}`);
   await carregarBotsAtivos();
   await iniciarBotUsuario(db, admin);
+  iniciarVidaPropria();
 });
