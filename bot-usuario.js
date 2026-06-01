@@ -1,6 +1,6 @@
 const BOT_ID   = 'BOT_BORES_OFICIAL';
 const BOT_NOME = 'BoresBot';
-const BOT_FOTO = 'https://iili.io/C3rRxRf.jpg';
+const BOT_FOTO = 'https://iili.io/C3iXrOv.jpg';
 const https    = require('https');
 
 async function perguntarGemini(texto) {
