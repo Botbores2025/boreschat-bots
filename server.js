@@ -53,7 +53,22 @@ const db = admin.firestore();
 const listeners = {};
 const SERVER_START = Date.now();
 const botDataCache = new Map(); // Cache para dados do bot
+const spamMap = new Map(); // Map para anti-spam melhorado
+const membrosAntigos = new Map(); // Map para rastrear novos membros
 const CACHE_TTL = 60000; // 1 minuto
+
+// Limpa spam map a cada 5 minutos para evitar memory leak
+setInterval(() => {
+  const agora = Date.now();
+  for (const [chave, timestamps] of spamMap.entries()) {
+    const vivos = timestamps.filter(t => agora - t < 5000);
+    if (vivos.length === 0) {
+      spamMap.delete(chave);
+    } else {
+      spamMap.set(chave, vivos);
+    }
+  }
+}, 5 * 60 * 1000);
 
 function getUptime() {
   const ms = Date.now() - SERVER_START;
