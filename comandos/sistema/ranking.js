@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // SISTEMA/RANKING.JS — Ranking visual profissional com canvas
 // Uso: /ranking  /ranking moedas  /ranking wins  /ranking conquistas
+//      /ranking semana  /ranking ativo  /ranking reacoes (NOVOS)
 // ═══════════════════════════════════════════════════════════════
 
 const { createCanvas, loadImage, registerFont } = require('canvas');
@@ -53,6 +54,9 @@ const TIPOS = {
   moedas:     { label: 'Moedas',     cor: '#FFD700', campo: 'moedas',     icone: '$'   },
   wins:       { label: 'Vitorias',   cor: '#22C55E', campo: 'wins',       icone: 'WIN' },
   conquistas: { label: 'Conquistas', cor: '#A855F7', campo: 'conquistas', icone: 'ACH' },
+  semana:     { label: 'Top Semana', cor: '#EC4899', campo: 'msgsSemana', icone: 'WK'  },
+  ativo:      { label: 'Mais Ativo', cor: '#06B6D4', campo: 'pontuacaoAtivo', icone: 'TOP' },
+  reacoes:    { label: 'Reacoes',    cor: '#F59E0B', campo: 'reacoesRecebidas', icone: 'REA' },
 };
 
 // ─── GERA IMAGEM DO RANKING ───────────────────────────────────────────────────
@@ -198,9 +202,18 @@ async function gerarImagemRanking(lista, nomeGrupo, tipo) {
     ctx.fillText(statsTexto.substring(0, 50), nomeX, y + 62);
 
     // ── Valor principal (direita) ─────────────────────────────────────────────
-    const val = tipo === 'conquistas'
-      ? (u.conquistas || []).length
-      : (u[cfg.campo] || 0);
+    let val;
+    if (tipo === 'conquistas') {
+      val = (u.conquistas || []).length;
+    } else if (tipo === 'semana') {
+      val = u.msgsSemana || 0;
+    } else if (tipo === 'ativo') {
+      val = u.pontuacaoAtivo || 0;
+    } else if (tipo === 'reacoes') {
+      val = u.reacoesRecebidas || 0;
+    } else {
+      val = (u[cfg.campo] || 0);
+    }
     const valStr = typeof val === 'number' ? val.toLocaleString() : String(val);
 
     ctx.fillStyle    = i < 3 ? cor : cfg.cor;
@@ -221,16 +234,49 @@ async function gerarImagemRanking(lista, nomeGrupo, tipo) {
   ctx.font         = FR(11);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('BoresChat Bots  |  /ranking xp  /ranking moedas  /ranking wins  /ranking conquistas', W / 2, H - 18);
+  ctx.fillText('BoresChat Bots  |  /ranking xp moedas wins conquistas semana ativo reacoes', W / 2, H - 18);
 
   const nome = `ranking_${Date.now()}.png`;
   fs.writeFileSync(path.join(__dirname, '../../uploads', nome), canvas.toBuffer('image/png'));
   return nome;
 }
 
+// ─── NOVO: BUSCA MSGS DA SEMANA ──────────────────────────────────────────────
+async function buscarMsgsSemana(db, grupoId) {
+  const seteDiasAtras = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  const contadorMsgs = {};
+  const reacoesRecebidas = {};
+
+  try {
+    const snap = await db.collection('grupos').doc(grupoId)
+      .collection('mensagens')
+      .orderBy('timestamp', 'desc')
+      .limit(500)
+      .get();
+
+    snap.forEach(d => {
+      const dado = d.data();
+      if (!dado.enviado_por || dado.ehBot) return;
+      const ts = dado.timestamp?.toMillis?.() || dado.timestamp?.seconds * 1000 || 0;
+      if (ts < seteDiasAtras) return;
+
+      contadorMsgs[dado.enviado_por] = (contadorMsgs[dado.enviado_por] || 0) + 1;
+
+      // Conta reacoes recebidas
+      if (dado.reacoes) {
+        const totalReacoes = Object.values(dado.reacoes).reduce((a, b) => a + (Array.isArray(b) ? b.length : 0), 0);
+        reacoesRecebidas[dado.enviado_por] = (reacoesRecebidas[dado.enviado_por] || 0) + totalReacoes;
+      }
+    });
+  } catch (e) { console.error('[Ranking] msgs semana erro:', e.message); }
+
+  return { contadorMsgs, reacoesRecebidas };
+}
+
 // ─── HANDLER ─────────────────────────────────────────────────────────────────
 async function mostrarRanking({ grupoId, args, nomeGrupo, botDados, replyTo, enviarMensagemBot, db }) {
-  const tipo = ['moedas','wins','conquistas'].includes(args?.trim().toLowerCase())
+  const tiposValidos = ['moedas','wins','conquistas','semana','ativo','reacoes'];
+  const tipo = tiposValidos.includes(args?.trim().toLowerCase())
     ? args.trim().toLowerCase() : 'xp';
 
   let lista = await getRanking(db, grupoId, 10);
@@ -249,10 +295,30 @@ async function mostrarRanking({ grupoId, args, nomeGrupo, botDados, replyTo, env
     return u;
   }));
 
+  // ─── NOVO: para tipos semana/ativo/reacoes busca dados extras ─────────────
+  if (['semana', 'ativo', 'reacoes'].includes(tipo)) {
+    const { contadorMsgs, reacoesRecebidas } = await buscarMsgsSemana(db, grupoId);
+    lista = lista.map(u => ({
+      ...u,
+      msgsSemana:       contadorMsgs[u.userId] || 0,
+      reacoesRecebidas: reacoesRecebidas[u.userId] || 0,
+      // Pontuacao ativo = msgs semana * 2 + reacoes recebidas * 3 + wins * 5
+      pontuacaoAtivo:   (contadorMsgs[u.userId] || 0) * 2 + (reacoesRecebidas[u.userId] || 0) * 3 + (u.wins || 0) * 5,
+    }));
+  }
+
   // Ordena por tipo
   if (tipo === 'moedas')     lista = lista.sort((a,b) => (b.moedas||0) - (a.moedas||0));
   if (tipo === 'wins')       lista = lista.sort((a,b) => (b.wins||0)   - (a.wins||0));
   if (tipo === 'conquistas') lista = lista.sort((a,b) => (b.conquistas||[]).length - (a.conquistas||[]).length);
+  if (tipo === 'semana')     lista = lista.sort((a,b) => (b.msgsSemana||0) - (a.msgsSemana||0));
+  if (tipo === 'ativo')      lista = lista.sort((a,b) => (b.pontuacaoAtivo||0) - (a.pontuacaoAtivo||0));
+  if (tipo === 'reacoes')    lista = lista.sort((a,b) => (b.reacoesRecebidas||0) - (a.reacoesRecebidas||0));
+
+  // Filtra apenas com dados positivos para semana/ativo/reacoes
+  if (['semana', 'ativo', 'reacoes'].includes(tipo)) {
+    lista = lista.filter(u => (u[TIPOS[tipo].campo] || 0) > 0);
+  }
 
   if (lista.length === 0) {
     await enviarMensagemBot(grupoId,
@@ -267,6 +333,9 @@ async function mostrarRanking({ grupoId, args, nomeGrupo, botDados, replyTo, env
     { label: 'Moedas',     comando: '/ranking moedas'     },
     { label: 'Vitorias',   comando: '/ranking wins'       },
     { label: 'Conquistas', comando: '/ranking conquistas' },
+    { label: 'Top Semana', comando: '/ranking semana'     },
+    { label: 'Mais Ativo', comando: '/ranking ativo'      },
+    { label: 'Reacoes',    comando: '/ranking reacoes'    },
   ];
 
   try {
