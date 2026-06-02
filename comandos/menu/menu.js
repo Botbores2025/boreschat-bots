@@ -222,7 +222,7 @@ async function gerarImagemMenu({ autorNome, nomeGrupo, fotoBot, menuFoto }) {
   ctx.font = FB(22);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(`${settings.BOT_NAME} 🤖`, infoX, avY + 28);
+  ctx.fillText(`${settings.BOT_NAME}`, infoX, avY + 28);
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = FR(13);
@@ -237,7 +237,7 @@ async function gerarImagemMenu({ autorNome, nomeGrupo, fotoBot, menuFoto }) {
   ctx.fillStyle = '#fff';
   ctx.font = FB(18);
   ctx.textAlign = 'left';
-  ctx.fillText(`${getSaudacao()}, ${autorNome.substring(0, 25)}! 👋`, 25, saudY);
+  ctx.fillText(`${getSaudacao()}, ${autorNome.substring(0, 25)}!`, 25, saudY);
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
   ctx.font = FR(12);
@@ -294,7 +294,8 @@ async function gerarImagemMenu({ autorNome, nomeGrupo, fotoBot, menuFoto }) {
     ctx.font = FB(13);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${cat.emoji} ${cat.label.toUpperCase()}`, x + 12, y + 14);
+    // Usar apenas o label sem emoji no canvas (emojis não renderizam bem)
+    ctx.fillText(`${cat.label.toUpperCase()}`, x + 12, y + 14);
 
     // Contador de comandos
     ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
@@ -311,17 +312,17 @@ async function gerarImagemMenu({ autorNome, nomeGrupo, fotoBot, menuFoto }) {
     ctx.lineTo(x + cardW - 10, y + 38);
     ctx.stroke();
 
-    // Lista dos 2 primeiros comandos (com emoji)
+    // Lista dos 2 primeiros comandos (SEM emojis no canvas)
     cat.cmds.slice(0, 2).forEach((c, ci) => {
       const cy = y + 50 + ci * 22;
       ctx.fillStyle = cat.cor;
       ctx.font = FR(10);
       ctx.textAlign = 'left';
-      ctx.fillText(`${c.emoji} ${c.cmd}`, x + 12, cy);
+      ctx.fillText(`${c.cmd}`, x + 12, cy);
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.font = FR(9);
-      ctx.fillText(c.desc.substring(0, 18), x + 12, cy + 12);
+      ctx.fillText(c.desc.substring(0, 22), x + 12, cy + 12);
     });
 
     // Ver mais
