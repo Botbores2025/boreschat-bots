@@ -270,6 +270,22 @@ async function processarComando(msgDoc, grupoId, botDados) {
       await usuario.clima(ctx);
       break;
 
+    case '/resumo':
+      await usuario.resumo(ctx);
+      break;
+
+    case '/enquete':
+      await usuario.enquete({ ...ctx, autorId: dado.enviado_por });
+      break;
+
+    case '/sorteio':
+      await usuario.sorteio(ctx);
+      break;
+
+    case '/mencoes':
+      await usuario.mencoes({ ...ctx, autorId: dado.enviado_por });
+      break;
+
     // ── SISTEMA ───────────────────────────────────────────────────────────────
     case '/perfil': {
       const targetId = dado.enviado_por;
