@@ -1,27 +1,34 @@
 // ═══════════════════════════════════════════════════════════════
-// SERVER.JS — Só inicia o bot e listeners
+// SERVER.JS — Servidor principal do BoresBot
+// Inicia listeners e gerencia API
 // Toda lógica de comandos fica em /comandos/
 // ═══════════════════════════════════════════════════════════════
 
 require('dotenv').config();
-const express  = require('express');
-const cors     = require('cors');
-const admin    = require('firebase-admin');
+const express = require('express');
+const cors = require('cors');
+const admin = require('firebase-admin');
+const https = require('https');
 const { v4: uuidv4 } = require('uuid');
-const multer   = require('multer');
-const path     = require('path');
-const fs       = require('fs');
-const settings    = require('./settings.json');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const settings = require('./settings.json');
 const { iniciarBotUsuario } = require('./bot-usuario');
 
-// ─── CARREGA TODOS OS MÓDULOS DE COMANDOS ────────────────────────────────────
+// ─── CARREGA TODOS OS MÓDULOS DE COMANDOS ───────────────────────────────────
 const { menu, adm, jogos, usuario, sistema } = require('./comandos');
 
 // ─── EXPRESS ─────────────────────────────────────────────────────────────────
 const app = express();
-app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
-app.options('*', cors());
-app.use(express.json());
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
 
 // ─── UPLOADS ─────────────────────────────────────────────────────────────────
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -43,103 +50,169 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 // ─── LISTENERS ATIVOS ────────────────────────────────────────────────────────
-const listeners   = {};
+const listeners = {};
 const SERVER_START = Date.now();
+const botDataCache = new Map(); // Cache para dados do bot
+const CACHE_TTL = 60000; // 1 minuto
 
 function getUptime() {
-  const ms    = Date.now() - SERVER_START;
+  const ms = Date.now() - SERVER_START;
   const total = Math.floor(ms / 1000);
-  const h     = Math.floor(total / 3600);
-  const m     = Math.floor((total % 3600) / 60);
-  const s     = total % 60;
-  const p     = [];
-  if (h > 0) p.push(`${h}h`);
-  if (m > 0) p.push(`${m}m`);
-  p.push(`${s}s`);
-  return p.join(' ');
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
 }
 
 function gerarToken() {
-  return 'BORES_' + uuidv4().replace(/-/g,'').substring(0,24).toUpperCase();
+  return 'BORES_' + uuidv4().replace(/-/g, '').substring(0, 24).toUpperCase();
 }
 
 function urlPublica(req, filename) {
   const proto = req.headers['x-forwarded-proto'] || req.protocol;
-  const host  = req.headers['x-forwarded-host']  || req.get('host');
+  const host = req.headers['x-forwarded-host'] || req.get('host');
   return `${proto}://${host}/uploads/${filename}`;
+}
+
+// Busca dados do bot com cache
+async function obterBotAtualizado(token) {
+  const agora = Date.now();
+  const cache = botDataCache.get(token);
+  if (cache && agora - cache.tempo < CACHE_TTL) {
+    return cache.dados;
+  }
+  try {
+    const botDoc = await db.collection('bots').doc(token).get();
+    if (botDoc.exists) {
+      const dados = botDoc.data();
+      botDataCache.set(token, { dados, tempo: agora });
+      return dados;
+    }
+  } catch (e) {
+    console.error(`[Cache] Erro ao buscar bot ${token}:`, e.message);
+  }
+  return null;
 }
 
 // ─── UPLOAD ──────────────────────────────────────────────────────────────────
 app.post('/api/upload', upload.single('file'), (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ erro: 'Nenhum arquivo recebido' });
+    if (!req.file) {
+      return res.status(400).json({ erro: 'Nenhum arquivo recebido' });
+    }
     res.json({ sucesso: true, url: urlPublica(req, req.file.filename) });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Upload] Erro:', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 // ─── ENVIAR MENSAGEM COMO BOT ─────────────────────────────────────────────────
 async function enviarMensagemBot(grupoId, texto, botDados, extras = {}) {
   const textoFinal = (texto || '').trim();
   if (!textoFinal && !extras.fotoUrl && !extras.botoes) return;
+  
   try {
-    await db.collection('grupos').doc(grupoId).collection('mensagens').add({
-      tipo:        extras.fotoUrl ? 'bot_card' : extras.botoes ? 'botoes' : 'texto',
-      texto:       textoFinal,
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    const msgData = {
+      tipo: extras.fotoUrl ? 'bot_card' : extras.botoes ? 'botoes' : 'texto',
+      texto: textoFinal,
       enviado_por: 'BOT_BORES_OFICIAL',
-      nome:        'BoresBot',
-      foto:        'https://iili.io/C3rRxRf.jpg',
-      ehBot:       false,
-      timestamp:   admin.firestore.FieldValue.serverTimestamp(),
-      lido:        false,
-      entregue:    true,
-      ...(extras.replyTo ? { replyTo: extras.replyTo } : {}),
-      ...(extras.fotoUrl ? { fotoUrl: extras.fotoUrl } : {}),
-      ...(extras.botoes  ? { botoes:  extras.botoes  } : {}),
-    });
-  } catch (e) { console.error('[Bot] Erro ao enviar:', e.message); }
+      nome: 'BoresBot',
+      foto: 'https://iili.io/C3rRxRf.jpg',
+      ehBot: false,
+      timestamp,
+      lido: false,
+      entregue: true,
+    };
+    
+    if (extras.replyTo) msgData.replyTo = extras.replyTo;
+    if (extras.fotoUrl) msgData.fotoUrl = extras.fotoUrl;
+    if (extras.botoes) msgData.botoes = extras.botoes;
+    
+    await db.collection('grupos').doc(grupoId).collection('mensagens').add(msgData);
+  } catch (erro) {
+    console.error('[Bot] Erro ao enviar mensagem:', erro.message);
+  }
+}
+
+// ─── RECARREGAR DADOS DO BOT E GRUPO ───────────────────────────────────────
+async function recarregarDadosBot(botDados, grupoId) {
+  let botAtualizado = botDados;
+  let nomeGrupo = grupoId;
+  let comandos = {};
+  
+  try {
+    const botAtual = await obterBotAtualizado(botDados.token);
+    if (botAtual) {
+      botAtualizado = botAtual;
+      comandos = botAtual.comandos || {};
+    }
+    
+    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+    if (grupoDoc.exists) {
+      nomeGrupo = grupoDoc.data().nome || grupoId;
+    }
+  } catch (erro) {
+    console.error('[RecarregarDados] Erro:', erro.message);
+  }
+  
+  return { botAtualizado, nomeGrupo, comandos };
 }
 
 // ─── PROCESSAR COMANDO ────────────────────────────────────────────────────────
 async function processarComando(msgDoc, grupoId, botDados) {
-  const dado      = msgDoc.data();
-  const texto     = dado.texto || '';
-  const msgId     = msgDoc.id;
+  const dado = msgDoc.data();
+  const texto = dado.texto || '';
+  const msgId = msgDoc.id;
   const autorNome = dado.nome || 'Membro';
 
   if (!texto.startsWith('/')) return;
 
-  const partes  = texto.trim().split(' ');
+  const partes = texto.trim().split(' ');
   const comando = partes[0].toLowerCase();
-  const args    = partes.slice(1).join(' ');
+  const args = partes.slice(1).join(' ');
 
-  const replyTo = { id: msgId, texto, nome: autorNome, enviado_por: dado.enviado_por || '', fotoUrl: null };
+  const replyTo = {
+    id: msgId,
+    texto,
+    nome: autorNome,
+    enviado_por: dado.enviado_por || '',
+    fotoUrl: null
+  };
 
-  // ─── Recarrega dados atualizados do Firestore ─────────────────────────────
-  let botDadosAtual  = botDados;
-  let comandosAtuais = {};
-  let nomeGrupo      = grupoId;
-  try {
-    const botDoc   = await db.collection('bots').doc(botDados.token).get();
-    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
-    if (botDoc.exists)   { botDadosAtual = { ...botDados, ...botDoc.data() }; comandosAtuais = botDadosAtual.comandos || {}; }
-    if (grupoDoc.exists) nomeGrupo = grupoDoc.data().nome || grupoId;
-  } catch (e) {}
-
+  // Recarrega dados atualizados
+  const { botAtualizado, nomeGrupo, comandos } = await recarregarDadosBot(botDados, grupoId);
   const cmdSemBarra = comando.replace(/^\//, '').toLowerCase();
 
   // ─── COMANDO CUSTOMIZADO ──────────────────────────────────────────────────
-  if (comandosAtuais[cmdSemBarra]) {
-    let resposta = comandosAtuais[cmdSemBarra].resposta;
+  if (comandos[cmdSemBarra]) {
+    let resposta = comandos[cmdSemBarra].resposta;
     resposta = resposta
       .replace(/{usuario}/g, autorNome)
       .replace(/{grupo}/g, nomeGrupo)
       .replace(/{args}/g, args || '');
-    await enviarMensagemBot(grupoId, resposta, botDadosAtual, { replyTo });
+    await enviarMensagemBot(grupoId, resposta, botAtualizado, { replyTo });
     return;
   }
 
   // ─── ROTEADOR DE COMANDOS ─────────────────────────────────────────────────
-  const ctx = { grupoId, autorNome, autorId: dado.enviado_por, foto: dado.foto || '', args, nomeGrupo, botDados: botDadosAtual, replyTo, enviarMensagemBot, db };
+  const ctx = {
+    grupoId,
+    autorNome,
+    autorId: dado.enviado_por,
+    foto: dado.foto || '',
+    args,
+    nomeGrupo,
+    botDados: botAtualizado,
+    replyTo,
+    enviarMensagemBot,
+    db
+  };
 
   switch (comando) {
 
@@ -153,26 +226,26 @@ async function processarComando(msgDoc, grupoId, botDados) {
       break;
 
     case '/cmds':
-      await menu.handleCmds({ ...ctx, comandosCustom: comandosAtuais });
+      await menu.handleCmds({ ...ctx, comandosCustom: comandos });
       break;
 
     // ── PING / INFO ───────────────────────────────────────────────────────────
     case '/ping': {
       const inicio = Date.now();
-      await db.collection('bots').doc(botDados.token).get();
+      await db.collection('bots').doc(botAtualizado.token).get();
       const ms = Date.now() - inicio;
       await enviarMensagemBot(grupoId,
-        `*${botDadosAtual.nome}*\n\nPong!\nVelocidade: *${ms}ms*\nUptime: *${getUptime()}*`,
-        botDadosAtual, { replyTo }
+        `*${botAtualizado.nome}*\n\nPong!\nVelocidade: *${ms}ms*\nUptime: *${getUptime()}*`,
+        botAtualizado, { replyTo }
       );
       break;
     }
 
     case '/info': {
-      const keys = Object.keys(comandosAtuais);
+      const keys = Object.keys(comandos);
       await enviarMensagemBot(grupoId,
-        `*${botDadosAtual.nome}*\n\nComandos: *${keys.length}*\nGrupos: *${(botDadosAtual.grupos||[]).length}*\nUptime: *${getUptime()}*`,
-        botDadosAtual, { replyTo }
+        `*${botAtualizado.nome}*\n\nComandos: *${keys.length}*\nGrupos: *${(botAtualizado.grupos || []).length}*\nUptime: *${getUptime()}*`,
+        botAtualizado, { replyTo }
       );
       break;
     }
@@ -340,18 +413,17 @@ async function iniciarListenerGrupo(grupoId, botDados) {
   const chave = `${grupoId}_${botDados.token}`;
   if (listeners[chave]) return;
   console.log(`🤖 Bot "${botDados.nome}" ouvindo grupo ${grupoId}`);
-  let primeiraExecucao      = true;
+  let primeiraExecucao = true;
   let ultimoMsgIdProcessado = null;
 
   // ─── Listener de novos membros ──────────────────────────────────────────
   const unsubGrupo = db.collection('grupos').doc(grupoId).onSnapshot(async (snap) => {
     if (!snap.exists) return;
-    const dados        = snap.data();
+    const dados = snap.data();
     const membrosAtual = dados.membros || [];
-    if (!iniciarListenerGrupo._membrosAnt) iniciarListenerGrupo._membrosAnt = {};
-    const antigos = iniciarListenerGrupo._membrosAnt[grupoId] || [];
-    const novos   = membrosAtual.filter(id => !antigos.includes(id));
-    iniciarListenerGrupo._membrosAnt[grupoId] = membrosAtual;
+    const antigos = membrosAntigos.get(grupoId) || [];
+    const novos = membrosAtual.filter(id => !antigos.includes(id));
+    membrosAntigos.set(grupoId, membrosAtual);
     if (antigos.length === 0 || novos.length === 0) return;
     for (const userId of novos) {
       try {
@@ -506,7 +578,10 @@ async function iniciarListenerGrupo(grupoId, botDados) {
       const textoMencao = (dado.texto || '').toLowerCase();
       if (textoMencao.includes('@boresbot') || textoMencao.includes('@bores')) {
         let botAtual = botDados;
-        try { const bd = await db.collection('bots').doc(botDados.token).get(); if (bd.exists) botAtual = { ...botDados, ...bd.data() }; } catch (_) {}
+        try {
+          const bd = await db.collection('bots').doc(botDados.token).get();
+          if (bd.exists) botAtual = { ...botDados, ...bd.data() };
+        } catch (_) {}
         
         const respostasMencao = [
           `Oi ${dado.nome}! Me chama que eu apareço! 😄`,
@@ -517,9 +592,15 @@ async function iniciarListenerGrupo(grupoId, botDados) {
         ];
         const resposta = respostasMencao[Math.floor(Math.random() * respostasMencao.length)];
         
-        // Simula digitando
-        await new Promise(r => setTimeout(r, 1000 + Math.random() * 1000));
-        await enviarMensagemBot(grupoId, resposta, botAtual, { replyTo: { id: msgId, texto: dado.texto, nome: dado.nome, enviado_por: dado.enviado_por, fotoUrl: null } });
+        await enviarMensagemBot(grupoId, resposta, botAtual, {
+          replyTo: {
+            id: msgId,
+            texto: dado.texto,
+            nome: dado.nome,
+            enviado_por: dado.enviado_por,
+            fotoUrl: null
+          }
+        });
         return;
       }
 
@@ -556,131 +637,302 @@ async function carregarBotsAtivos() {
 app.post('/api/bots/criar', async (req, res) => {
   try {
     const { nome, descricao, donoId } = req.body;
-    if (!nome || !donoId) return res.status(400).json({ erro: 'Nome e donoId obrigatorios' });
+    
+    if (!nome?.trim() || !donoId?.trim()) {
+      return res.status(400).json({ erro: 'Nome e donoId obrigatórios' });
+    }
+    
     const token = gerarToken();
-    await db.collection('bots').doc(token).set({
-      token, nome, descricao: descricao || '', donoId,
-      foto: '', menuFoto: '', comandos: {}, grupos: [], ativo: true,
+    const botData = {
+      token,
+      nome: nome.trim(),
+      descricao: (descricao || '').trim(),
+      donoId: donoId.trim(),
+      foto: '',
+      menuFoto: '',
+      comandos: {},
+      grupos: [],
+      ativo: true,
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+    
+    await db.collection('bots').doc(token).set(botData);
+    console.log(`[Bot] Novo bot criado: ${nome} (${token})`);
     res.json({ sucesso: true, token, nome });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Criar Bot]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.get('/api/bots/:donoId', async (req, res) => {
   try {
-    const snap = await db.collection('bots').where('donoId', '==', req.params.donoId).get();
-    res.json({ bots: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+    const { donoId } = req.params;
+    if (!donoId?.trim()) {
+      return res.status(400).json({ erro: 'donoId obrigatório' });
+    }
+    
+    const snap = await db.collection('bots')
+      .where('donoId', '==', donoId.trim())
+      .get();
+    
+    res.json({
+      bots: snap.docs.map(d => ({ id: d.id, ...d.data() })),
+      total: snap.size
+    });
+  } catch (erro) {
+    console.error('[Listar Bots]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.get('/api/bot/:token', async (req, res) => {
   try {
-    const docSnap = await db.collection('bots').doc(req.params.token).get();
-    if (!docSnap.exists) return res.status(404).json({ erro: 'Bot nao encontrado' });
+    const { token } = req.params;
+    if (!token?.trim()) {
+      return res.status(400).json({ erro: 'token obrigatório' });
+    }
+    
+    const docSnap = await db.collection('bots').doc(token.trim()).get();
+    if (!docSnap.exists) {
+      return res.status(404).json({ erro: 'Bot não encontrado' });
+    }
+    
     res.json({ bot: { id: docSnap.id, ...docSnap.data() } });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Obter Bot]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.put('/api/bot/:token', async (req, res) => {
   try {
+    const { token } = req.params;
     const { nome, descricao, foto, menuFoto, prefixo } = req.body;
+    
+    if (!token?.trim()) {
+      return res.status(400).json({ erro: 'token obrigatório' });
+    }
+    
     const updates = {};
-    if (nome      !== undefined) updates.nome      = nome;
-    if (descricao !== undefined) updates.descricao = descricao;
-    if (foto      !== undefined) updates.foto      = foto;
-    if (menuFoto  !== undefined) updates.menuFoto  = menuFoto;
-    if (prefixo   !== undefined) updates.prefixo   = prefixo;
-    await db.collection('bots').doc(req.params.token).update(updates);
+    if (nome !== undefined) updates.nome = nome.trim();
+    if (descricao !== undefined) updates.descricao = descricao.trim();
+    if (foto !== undefined) updates.foto = foto;
+    if (menuFoto !== undefined) updates.menuFoto = menuFoto;
+    if (prefixo !== undefined) updates.prefixo = prefixo;
+    
+    await db.collection('bots').doc(token.trim()).update(updates);
+    botDataCache.delete(token.trim()); // Limpa cache
+    
+    console.log(`[Bot] Atualizado: ${token}`);
     res.json({ sucesso: true });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Atualizar Bot]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.post('/api/bot/:token/comando', async (req, res) => {
   try {
+    const { token } = req.params;
     const { comando, resposta, descricao } = req.body;
-    if (!comando || !resposta) return res.status(400).json({ erro: 'Comando e resposta obrigatorios' });
-    const cmdSemBarra    = comando.replace(/^\//, '').toLowerCase();
-    const botDoc         = await db.collection('bots').doc(req.params.token).get();
-    if (!botDoc.exists) return res.status(404).json({ erro: 'Bot nao encontrado' });
-    const cmds           = botDoc.data()?.comandos || {};
-    cmds[cmdSemBarra]    = { resposta, descricao: descricao || '' };
-    await db.collection('bots').doc(req.params.token).update({ comandos: cmds });
+    
+    if (!token?.trim()) {
+      return res.status(400).json({ erro: 'token obrigatório' });
+    }
+    
+    if (!comando?.trim() || !resposta?.trim()) {
+      return res.status(400).json({ erro: 'Comando e resposta obrigatórios' });
+    }
+    
+    const cmdSemBarra = comando.replace(/^\//, '').toLowerCase().trim();
+    const botDoc = await db.collection('bots').doc(token.trim()).get();
+    
+    if (!botDoc.exists) {
+      return res.status(404).json({ erro: 'Bot não encontrado' });
+    }
+    
+    const cmds = botDoc.data()?.comandos || {};
+    cmds[cmdSemBarra] = {
+      resposta: resposta.trim(),
+      descricao: (descricao || '').trim()
+    };
+    
+    await db.collection('bots').doc(token.trim()).update({ comandos: cmds });
+    botDataCache.delete(token.trim()); // Limpa cache
+    
+    console.log(`[Comando] Adicionado: /${cmdSemBarra}`);
     res.json({ sucesso: true, comando: `/${cmdSemBarra}` });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Adicionar Comando]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.delete('/api/bot/:token/comando/:cmd', async (req, res) => {
   try {
-    const cmdSemBarra = req.params.cmd.replace(/^\//, '').toLowerCase();
-    const botDoc      = await db.collection('bots').doc(req.params.token).get();
-    if (!botDoc.exists) return res.status(404).json({ erro: 'Bot nao encontrado' });
+    const { token, cmd } = req.params;
+    
+    if (!token?.trim() || !cmd?.trim()) {
+      return res.status(400).json({ erro: 'token e cmd obrigatórios' });
+    }
+    
+    const cmdSemBarra = cmd.replace(/^\//, '').toLowerCase().trim();
+    const botDoc = await db.collection('bots').doc(token.trim()).get();
+    
+    if (!botDoc.exists) {
+      return res.status(404).json({ erro: 'Bot não encontrado' });
+    }
+    
     const cmds = botDoc.data()?.comandos || {};
+    if (!cmds[cmdSemBarra]) {
+      return res.status(404).json({ erro: 'Comando não encontrado' });
+    }
+    
     delete cmds[cmdSemBarra];
-    await db.collection('bots').doc(req.params.token).update({ comandos: cmds });
+    await db.collection('bots').doc(token.trim()).update({ comandos: cmds });
+    botDataCache.delete(token.trim()); // Limpa cache
+    
+    console.log(`[Comando] Removido: /${cmdSemBarra}`);
     res.json({ sucesso: true });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Remover Comando]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.post('/api/bot/:token/grupo/:grupoId', async (req, res) => {
   try {
     const { token, grupoId } = req.params;
-    const botDoc = await db.collection('bots').doc(token).get();
-    if (!botDoc.exists) return res.status(404).json({ erro: 'Token invalido' });
+    
+    if (!token?.trim() || !grupoId?.trim()) {
+      return res.status(400).json({ erro: 'token e grupoId obrigatórios' });
+    }
+    
+    const tokenTrim = token.trim();
+    const grupoIdTrim = grupoId.trim();
+    const botDoc = await db.collection('bots').doc(tokenTrim).get();
+    
+    if (!botDoc.exists) {
+      return res.status(404).json({ erro: 'Bot não encontrado' });
+    }
+    
     const botDados = botDoc.data();
-    await db.collection('bots').doc(token).update({ grupos: admin.firestore.FieldValue.arrayUnion(grupoId) });
-    await db.collection('grupos').doc(grupoId).update({ bots: admin.firestore.FieldValue.arrayUnion(token) });
-    pararListener(grupoId, botDados.token);
-    const fresco = await db.collection('bots').doc(token).get();
-    await iniciarListenerGrupo(grupoId, fresco.data());
-    await enviarMensagemBot(grupoId, `*${botDados.nome}* entrou no grupo!\n\nDigite /menu para comecar.`, botDados);
+    
+    // Adiciona grupo ao bot e bot ao grupo
+    await db.collection('bots').doc(tokenTrim)
+      .update({ grupos: admin.firestore.FieldValue.arrayUnion(grupoIdTrim) });
+    await db.collection('grupos').doc(grupoIdTrim)
+      .update({ bots: admin.firestore.FieldValue.arrayUnion(tokenTrim) });
+    
+    // Para listener antigo e inicia novo
+    pararListener(grupoIdTrim, botDados.token);
+    const botFresco = await db.collection('bots').doc(tokenTrim).get();
+    if (botFresco.exists) {
+      await iniciarListenerGrupo(grupoIdTrim, botFresco.data());
+    }
+    
+    // Envia mensagem de boas-vindas
+    await enviarMensagemBot(
+      grupoIdTrim,
+      `*${botDados.nome}* entrou no grupo!\n\nDigite /menu para começar.`,
+      botDados
+    );
+    
+    console.log(`[Grupo] Bot ${botDados.nome} adicionado ao grupo ${grupoIdTrim}`);
     res.json({ sucesso: true, nomBot: botDados.nome });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Adicionar Bot Grupo]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.delete('/api/bot/:token/grupo/:grupoId', async (req, res) => {
   try {
     const { token, grupoId } = req.params;
-    await db.collection('bots').doc(token).update({ grupos: admin.firestore.FieldValue.arrayRemove(grupoId) });
-    await db.collection('grupos').doc(grupoId).update({ bots: admin.firestore.FieldValue.arrayRemove(token) });
-    pararListener(grupoId, token);
+    
+    if (!token?.trim() || !grupoId?.trim()) {
+      return res.status(400).json({ erro: 'token e grupoId obrigatórios' });
+    }
+    
+    const tokenTrim = token.trim();
+    const grupoIdTrim = grupoId.trim();
+    
+    // Remove grupo do bot e bot do grupo
+    await db.collection('bots').doc(tokenTrim)
+      .update({ grupos: admin.firestore.FieldValue.arrayRemove(grupoIdTrim) });
+    await db.collection('grupos').doc(grupoIdTrim)
+      .update({ bots: admin.firestore.FieldValue.arrayRemove(tokenTrim) });
+    
+    // Para listener
+    pararListener(grupoIdTrim, tokenTrim);
+    
+    console.log(`[Grupo] Bot removido do grupo ${grupoIdTrim}`);
     res.json({ sucesso: true });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Remover Bot Grupo]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 app.delete('/api/bot/:token', async (req, res) => {
   try {
     const { token } = req.params;
-    const botDoc = await db.collection('bots').doc(token).get();
-    if (!botDoc.exists) return res.status(404).json({ erro: 'Bot nao encontrado' });
-    for (const grupoId of (botDoc.data().grupos || [])) pararListener(grupoId, token);
-    await db.collection('bots').doc(token).delete();
+    
+    if (!token?.trim()) {
+      return res.status(400).json({ erro: 'token obrigatório' });
+    }
+    
+    const tokenTrim = token.trim();
+    const botDoc = await db.collection('bots').doc(tokenTrim).get();
+    
+    if (!botDoc.exists) {
+      return res.status(404).json({ erro: 'Bot não encontrado' });
+    }
+    
+    // Para todos os listeners
+    const grupos = botDoc.data().grupos || [];
+    for (const grupoId of grupos) {
+      pararListener(grupoId, tokenTrim);
+    }
+    
+    // Deleta o bot
+    await db.collection('bots').doc(tokenTrim).delete();
+    botDataCache.delete(tokenTrim); // Limpa cache
+    
+    console.log(`[Bot] Deletado: ${tokenTrim}`);
     res.json({ sucesso: true });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (erro) {
+    console.error('[Deletar Bot]', erro.message);
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
 // ─── ROTA GEMINI IA ──────────────────────────────────────────────────────────
 app.post('/api/gemini', async (req, res) => {
   try {
     const { question } = req.body;
-    if (!question) return res.status(400).json({ error: 'Pergunta obrigatoria' });
+    if (!question) {
+      return res.status(400).json({ error: 'Pergunta obrigatória' });
+    }
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.json({ text: 'IA indisponivel. Configure GEMINI_API_KEY.' });
+    if (!apiKey) {
+      return res.status(503).json({ error: 'IA indisponível. Configure GEMINI_API_KEY.' });
+    }
 
-    const systemPrompt = `Voce e o BoresBot, assistente oficial do BoresChat.
+    const systemPrompt = `Você é o BoresBot, assistente oficial do BoresChat.
 Fui criado e treinado por Riquefla, desenvolvedor do BoresChat.
-Sou um assistente simpatico, divertido e prestativo.
-Respondo em portugues brasileiro de forma natural e amigavel.
+Sou um assistente simpático, divertido e prestativo.
+Respondo em português brasileiro de forma natural e amigável.
 Quando perguntarem quem me criou, digo: "Fui criado e treinado pelo Riquefla, o desenvolvedor do BoresChat!"
-Maximo 3 frases por resposta. Sem markdown.`;
+Máximo 3 frases por resposta. Sem markdown.`;
 
-    const https = require('https');
-    const body = JSON.stringify({
+    const requestBody = JSON.stringify({
       contents: [{
-        parts: [{ text: `${systemPrompt}
-
-Usuario perguntou: ${question}` }]
+        parts: [{
+          text: `${systemPrompt}\n\nUsuário perguntou: ${question}`
+        }]
       }],
       generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
     });
@@ -690,34 +942,72 @@ Usuario perguntou: ${question}` }]
         hostname: 'generativelanguage.googleapis.com',
         path: `/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(requestBody),
+        },
       }, (r) => {
         let raw = '';
-        r.on('data', c => raw += c);
+        r.on('data', chunk => {
+          raw += chunk;
+        });
         r.on('end', () => {
-          try { resolve(JSON.parse(raw)); } catch (_) { resolve(null); }
+          try {
+            resolve(JSON.parse(raw));
+          } catch (erro) {
+            console.error('[Gemini] Erro ao parsear resposta:', erro.message);
+            resolve(null);
+          }
         });
       });
-      req2.on('error', reject);
-      req2.write(body);
+
+      req2.on('error', (erro) => {
+        console.error('[Gemini] Erro na requisição:', erro.message);
+        reject(erro);
+      });
+
+      req2.write(requestBody);
       req2.end();
     });
 
     const text = resposta?.candidates?.[0]?.content?.parts?.[0]?.text;
-    res.json({ text: text || 'Nao consegui responder agora. Tente novamente!' });
+    if (!text) {
+      console.warn('[Gemini] Resposta vazia ou inválida');
+      return res.json({ text: 'Não consegui responder agora. Tente novamente!' });
+    }
 
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.json({ text });
+
+  } catch (erro) {
+    console.error('[Gemini]', erro.message);
+    res.status(500).json({ error: erro.message });
   }
 });
 
 app.get('/', (_req, res) => {
   res.json({
-    status:    'online',
-    bot:       settings.BOT_NAME,
-    versao:    settings.BOT_VERSION,
-    uptime:    getUptime(),
+    status: 'online',
+    bot: settings.BOT_NAME,
+    versao: settings.BOT_VERSION,
+    uptime: getUptime(),
     listeners: Object.keys(listeners).length,
+    timestamp: new Date().toISOString(),
+    cacheBots: botDataCache.size,
+  });
+});
+
+// ─── MIDDLEWARE: Rota 404 ─────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ erro: 'Rota não encontrada' });
+});
+
+// ─── MIDDLEWARE: Error handler global ──────────────────────────────────────────
+app.use((err, _req, res, _next) => {
+  console.error('[Error]', err);
+  res.status(err.status || 500).json({
+    erro: process.env.NODE_ENV === 'production'
+      ? 'Erro interno do servidor'
+      : err.message,
   });
 });
 
@@ -774,9 +1064,32 @@ function iniciarVidaPropria() {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  console.log(`🚀 ${settings.BOT_NAME} v${settings.BOT_VERSION} rodando na porta ${PORT}`);
-  await carregarBotsAtivos();
-  await iniciarBotUsuario(db, admin);
-  iniciarVidaPropria();
+const server = app.listen(PORT, async () => {
+  try {
+    console.log(`🚀 ${settings.BOT_NAME} v${settings.BOT_VERSION} rodando na porta ${PORT}`);
+    console.log(`🔗 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    
+    await carregarBotsAtivos();
+    await iniciarBotUsuario(db, admin);
+    iniciarVidaPropria();
+    
+    console.log('✅ Servidor iniciado com sucesso!');
+  } catch (erro) {
+    console.error('❌ Erro ao iniciar servidor:', erro.message);
+    process.exit(1);
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('📭 SIGTERM recebido, encerrando servidor...');
+  server.close(() => {
+    console.log('✅ Servidor encerrado');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('📭 SIGINT recebido, encerrando servidor...');
+  process.exit(0);
 });
