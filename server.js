@@ -191,9 +191,6 @@ async function processarComando(msgDoc, grupoId, botDados) {
   const partes = texto.trim().split(' ');
   const comando = partes[0].toLowerCase();
 
-  if (comando === '/voz') {
-    console.log('[Voz] DEBUG dado completo:', JSON.stringify(dado, null, 2));
-  }
   const args = partes.slice(1).join(' ');
 
   const replyTo = {
@@ -229,6 +226,7 @@ async function processarComando(msgDoc, grupoId, botDados) {
     nomeGrupo,
     botDados: botAtualizado,
     replyTo,
+    dadoReplyTo: dado.replyTo || null,
     enviarMensagemBot,
     db
   };

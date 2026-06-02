@@ -39,8 +39,9 @@ async function tentarTranscricao(modelo, apiKey, audioBase64, mimeType) {
   }
 }
 
-module.exports = async function voz({ grupoId, args, autorNome, replyTo, botDados, enviarMensagemBot }) {
-  if (!replyTo?.audioUrl) {
+module.exports = async function voz({ grupoId, args, autorNome, replyTo, dadoReplyTo, botDados, enviarMensagemBot, db }) {
+  // Verifica se a mensagem respondida é um áudio
+  if (!dadoReplyTo || dadoReplyTo.tipo !== 'audio') {
     await enviarMensagemBot(grupoId,
       'Responda uma mensagem de áudio com /voz para eu transcrever!',
       botDados, { replyTo }
@@ -62,8 +63,22 @@ module.exports = async function voz({ grupoId, args, autorNome, replyTo, botDado
   await enviarMensagemBot(grupoId, '🎤 Transcrevendo áudio...', botDados);
 
   try {
-    console.log('[Voz] Baixando áudio de:', replyTo.audioUrl);
-    const audioResp = await fetch(replyTo.audioUrl);
+    // Busca a mensagem de áudio no Firestore pelo ID
+    console.log('[Voz] Buscando mensagem de áudio ID:', dadoReplyTo.id);
+    const audioDoc = await db.collection('grupos').doc(grupoId).collection('mensagens').doc(dadoReplyTo.id).get();
+    if (!audioDoc.exists) {
+      throw new Error('Mensagem de áudio não encontrada no Firestore');
+    }
+    const audioData = audioDoc.data();
+    console.log('[Voz] Campos da mensagem de áudio:', Object.keys(audioData));
+
+    const audioUrl = audioData.url || audioData.audioUrl || audioData.mediaUrl || '';
+    if (!audioUrl) {
+      throw new Error('URL do áudio não encontrada na mensagem');
+    }
+
+    console.log('[Voz] Baixando áudio de:', audioUrl);
+    const audioResp = await fetch(audioUrl);
     if (!audioResp.ok) {
       throw new Error(`Falha ao baixar áudio: ${audioResp.status}`);
     }
@@ -80,10 +95,9 @@ module.exports = async function voz({ grupoId, args, autorNome, replyTo, botDado
       if (resposta) {
         console.log(`[Voz] Respondeu com ${modelo}:`, resposta.substring(0, 100));
 
-        // Separa transcrição da resposta se houver quebra de linha
         const partes = resposta.split('\n\n');
-        let transcricao = partes[0] || resposta;
-        let respostaTexto = partes.slice(1).join('\n\n') || '';
+        const transcricao = partes[0] || resposta;
+        const respostaTexto = partes.slice(1).join('\n\n') || '';
 
         const mensagem = respostaTexto
           ? `🎤 Transcrição: ${transcricao}\n\n🤖 Resposta: ${respostaTexto}`
