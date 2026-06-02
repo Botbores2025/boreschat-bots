@@ -454,6 +454,54 @@ async function iniciarListenerGrupo(grupoId, botDados) {
         return;
       }
 
+      // ─── Anti-spam ────────────────────────────────────────────────────────
+      if (dado.enviado_por && dado.texto) {
+        try {
+          const spamKey = `spam_${grupoId}_${dado.enviado_por}`;
+          if (!iniciarListenerGrupo._spamMap) iniciarListenerGrupo._spamMap = {};
+          if (!iniciarListenerGrupo._spamMap[spamKey]) iniciarListenerGrupo._spamMap[spamKey] = [];
+
+          const agora = Date.now();
+          const historico = iniciarListenerGrupo._spamMap[spamKey];
+
+          // Remove msgs antigas (fora da janela de 5s)
+          iniciarListenerGrupo._spamMap[spamKey] = historico.filter(t => agora - t < 5000);
+          iniciarListenerGrupo._spamMap[spamKey].push(agora);
+
+          const countRecente = iniciarListenerGrupo._spamMap[spamKey].length;
+
+          // Spam: mais de 5 msgs em 5 segundos
+          if (countRecente > 5) {
+            console.log(`[AntiSpam] Spam detectado de ${dado.nome} no grupo ${grupoId}`);
+
+            // Apaga a mensagem
+            await db.collection('grupos').doc(grupoId)
+              .collection('mensagens').doc(msgId).delete();
+
+            // Silencia por 5 minutos se for reincidente
+            if (countRecente > 8) {
+              const gSnap2  = await db.collection('grupos').doc(grupoId).get();
+              const silenciados = gSnap2.data()?.silenciados || {};
+              silenciados[dado.enviado_por] = {
+                ate: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+                horas: 0,
+                motivo: 'spam',
+              };
+              await db.collection('grupos').doc(grupoId).update({ silenciados });
+
+              let botAtual = botDados;
+              try { const bd = await db.collection('bots').doc(botDados.token).get(); if (bd.exists) botAtual = { ...botDados, ...bd.data() }; } catch (_) {}
+
+              await enviarMensagemBot(grupoId,
+                `${dado.nome} foi silenciado por 5 minutos por spam!`,
+                botAtual
+              );
+            }
+            return;
+          }
+        } catch (e) { console.error('[AntiSpam]', e.message); }
+      }
+
       // ─── Detecta menção @BoresBot ─────────────────────────────────────────
       const textoMencao = (dado.texto || '').toLowerCase();
       if (textoMencao.includes('@boresbot') || textoMencao.includes('@bores')) {
