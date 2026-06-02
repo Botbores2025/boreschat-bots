@@ -374,6 +374,10 @@ async function processarComando(msgDoc, grupoId, botDados) {
       await usuario.mencoes({ ...ctx, autorId: dado.enviado_por });
       break;
 
+    case '/voz':
+      await usuario.voz(ctx);
+      break;
+
     // ── SISTEMA ───────────────────────────────────────────────────────────────
     case '/perfil': {
       const targetId = dado.enviado_por;
