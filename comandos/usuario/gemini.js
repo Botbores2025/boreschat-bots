@@ -3,6 +3,8 @@
 // Uso: /ia pergunta aqui
 // ═══════════════════════════════════════
 
+const { verificarLimite, incrementarUso } = require('../sistema/planos');
+
 const SYSTEM_PROMPT = `Voce é o BoresBot, assistente oficial do BoresChat.
 Fui criado e treinado por Riquefla, o desenvolvedor do BoresChat.
 Sou simpático, divertido e prestativo. Respondo em português brasileiro natural.
@@ -48,13 +50,24 @@ async function tentarModelo(modelo, apiKey, prompt) {
   }
 }
 
-module.exports = async function gemini({ grupoId, args, autorNome, botDados, replyTo, enviarMensagemBot }) {
+module.exports = async function gemini({ grupoId, args, autorId, autorNome, botDados, replyTo, enviarMensagemBot, db }) {
   if (!args) {
     await enviarMensagemBot(grupoId,
       'Use: /ia sua pergunta\nEx: /ia O que é um buraco negro?',
       botDados, { replyTo }
     );
     return;
+  }
+
+  // Verificação de limite diário
+  if (autorId) {
+    const check = await verificarLimite(autorId, 'ia', db);
+    if (!check.permitido) {
+      await enviarMensagemBot(grupoId,
+        `🤖 Você atingiu o limite de ${check.limite} perguntas IA hoje!\n\nFaça upgrade pro Bores+ e tenha IA ILIMITADA!\nAcesse o app → Perfil → Premium`,
+        botDados, { replyTo });
+      return;
+    }
   }
 
   const apiKey = process.env['GEMINI_API_KEY'] || process.env.GEMINI_API_KEY || '';
@@ -72,17 +85,17 @@ module.exports = async function gemini({ grupoId, args, autorNome, botDados, rep
 
   const prompt = `${SYSTEM_PROMPT}\n\n${autorNome} perguntou: ${args}`;
 
-  // Tenta cada modelo até um responder
   for (const modelo of MODELOS) {
     const resposta = await tentarModelo(modelo, apiKey, prompt);
     if (resposta) {
       console.log(`[Gemini] Respondeu com ${modelo}:`, resposta.substring(0, 100));
       await enviarMensagemBot(grupoId, resposta, botDados, { replyTo });
+      // Incrementa uso somente após resposta bem-sucedida
+      if (autorId) await incrementarUso(autorId, 'ia', db);
       return;
     }
   }
 
-  // Nenhum modelo respondeu
   console.error('[Gemini] Todos os modelos falharam');
   await enviarMensagemBot(
     grupoId,

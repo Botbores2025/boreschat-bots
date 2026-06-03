@@ -19,6 +19,8 @@ const { iniciarBotUsuario } = require('./bot-usuario');
 // ─── CARREGA TODOS OS MÓDULOS DE COMANDOS ───────────────────────────────────
 const { menu, adm, jogos, usuario, sistema } = require('./comandos');
 const { verificarInsigniasUsuario, verificarInsigniasGrupo } = require('./comandos/sistema/insignias');
+const { criarPagamentoPix, consultarPagamento } = require('./comandos/sistema/mercadoPago');
+const { ativarPlano, getPlanoUsuario, verificarLimite, incrementarUso, PLANOS_PRECOS } = require('./comandos/sistema/planos');
 
 // ─── EXPRESS ─────────────────────────────────────────────────────────────────
 const app = express();
@@ -1050,6 +1052,107 @@ Máximo 3 frases por resposta. Sem markdown.`;
   }
 });
 
+// ─── ROTA: Criar pagamento PIX ───────────────────────────────────────────────
+app.post('/api/pagamento/criar', async (req, res) => {
+  try {
+    const { userId, planoId, email } = req.body;
+    if (!userId || !planoId) return res.status(400).json({ erro: 'Faltam dados' });
+
+    const plano = PLANOS_PRECOS[planoId];
+    if (!plano) return res.status(400).json({ erro: 'Plano inválido' });
+
+    const pagamento = await criarPagamentoPix({
+      userId, planoId, email,
+      valor:    plano.preco,
+      descricao: `BoresChat - Plano ${plano.nome} (30 dias)`,
+    });
+
+    if (!pagamento.id) {
+      console.error('[MP] Erro ao criar pagamento:', pagamento);
+      return res.status(500).json({ erro: 'Falha ao gerar PIX', detalhe: pagamento });
+    }
+
+    await db.collection('pagamentos').doc(String(pagamento.id)).set({
+      pagamentoId: String(pagamento.id),
+      userId, planoId,
+      valor:    plano.preco,
+      status:   pagamento.status,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`[Pagamento] PIX criado: id=${pagamento.id} userId=${userId} plano=${planoId}`);
+    res.json({
+      sucesso:      true,
+      pagamentoId:  String(pagamento.id),
+      qrCode:       pagamento.point_of_interaction?.transaction_data?.qr_code,
+      qrCodeBase64: pagamento.point_of_interaction?.transaction_data?.qr_code_base64,
+      copiaecola:   pagamento.point_of_interaction?.transaction_data?.qr_code,
+      status:       pagamento.status,
+    });
+  } catch (e) {
+    console.error('[Pagamento] Erro criar:', e.message);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// ─── ROTA: Verificar status do pagamento ─────────────────────────────────────
+app.get('/api/pagamento/status/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pag = await consultarPagamento(id);
+
+    if (pag.status === 'approved') {
+      const pagDoc = await db.collection('pagamentos').doc(id).get();
+      if (pagDoc.exists && !pagDoc.data().planoAtivado) {
+        const { userId, planoId } = pagDoc.data();
+        await ativarPlano(userId, planoId, db);
+        await db.collection('pagamentos').doc(id).update({
+          planoAtivado: true,
+          aprovadoEm:   admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    res.json({ status: pag.status });
+  } catch (e) {
+    console.error('[Pagamento] Erro status:', e.message);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// ─── WEBHOOK: Notificação do Mercado Pago ────────────────────────────────────
+app.post('/api/pagamento/webhook', async (req, res) => {
+  try {
+    const { type, data } = req.body;
+    if (type !== 'payment') return res.sendStatus(200);
+
+    const pag = await consultarPagamento(data.id);
+    console.log('[Webhook] Pagamento recebido:', pag.id, 'status:', pag.status);
+
+    if (pag.status === 'approved') {
+      const ref = pag.external_reference || '';
+      const [userId, planoId] = ref.split('|');
+
+      if (userId && planoId) {
+        await ativarPlano(userId, planoId, db);
+        await db.collection('pagamentos').doc(String(pag.id)).set({
+          pagamentoId:  String(pag.id),
+          userId, planoId,
+          status:       'approved',
+          planoAtivado: true,
+          aprovadoEm:   admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        console.log(`[Webhook] Plano ${planoId} ATIVADO para ${userId}`);
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (e) {
+    console.error('[Webhook] Erro:', e.message);
+    res.sendStatus(200); // Sempre 200 pra MP não reenviar
+  }
+});
+
 app.get('/', (_req, res) => {
   res.json({
     status: 'online',
@@ -1128,6 +1231,32 @@ function iniciarVidaPropria() {
   setTimeout(agendar, 30 * 60 * 1000);
   console.log('✅ Vida própria do bot ativada!');
 }
+
+// ─── JOB: Verificar planos vencidos (a cada 1 hora) ──────────────────────────
+setInterval(async () => {
+  try {
+    console.log('[Planos] Verificando planos vencidos...');
+    const snap = await db.collection('usuarios')
+      .where('planoAtual', '!=', 'free')
+      .limit(200).get();
+
+    const agora = Date.now();
+    const TOLERANCIA = 3 * 24 * 60 * 60 * 1000; // 3 dias
+
+    for (const userDoc of snap.docs) {
+      const dados  = userDoc.data();
+      const venceEm = dados.planoVenceEm?.toMillis?.() || 0;
+
+      if (venceEm + TOLERANCIA < agora) {
+        await db.collection('usuarios').doc(userDoc.id).update({
+          planoAtual:     'free',
+          planoVencidoEm: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`[Planos] ${userDoc.id} voltou pro Free (vencido)`);
+      }
+    }
+  } catch (e) { console.log('[Planos] erro periódico:', e.message); }
+}, 60 * 60 * 1000); // 1 hora
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, async () => {
