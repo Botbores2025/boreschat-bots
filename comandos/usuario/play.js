@@ -3,7 +3,6 @@
 // Uso: /play nome da musica
 // ═══════════════════════════════════════
 
-const https = require('https');
 const admin = require('firebase-admin');
 
 const FRASES_MUSICA = [
@@ -20,21 +19,6 @@ function formatarDuracao(segundos) {
   const min = Math.floor(segundos / 60);
   const sec = Math.floor(segundos % 60);
   return `${min}:${sec.toString().padStart(2, '0')}`;
-}
-
-function httpsGet(url) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 30000 }, (res) => {
-      let raw = '';
-      res.on('data', chunk => { raw += chunk; });
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, data: JSON.parse(raw) }); }
-        catch (e) { reject(new Error('Resposta inválida da API')); }
-      });
-    });
-    req.on('timeout', () => { req.destroy(); reject(new Error('TIMEOUT')); });
-    req.on('error', reject);
-  });
 }
 
 module.exports = async function play({ grupoId, args, autorNome, botDados, replyTo, enviarMensagemBot, db }) {
@@ -64,29 +48,44 @@ module.exports = async function play({ grupoId, args, autorNome, botDados, reply
     const termo = encodeURIComponent(args.trim());
     const url = `https://api.spiderx.com.br/api/downloads/play-audio?search=${termo}&api_key=${apiKey}`;
 
-    const { status, data } = await httpsGet(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
-    if (status === 524) {
-      await enviarMensagemBot(grupoId,
-        '⏳ A busca demorou demais. Tenta de novo!',
-        botDados, { replyTo }
-      );
+    let resp;
+    try {
+      resp = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const rawText = await resp.text();
+    console.log('[Play] status:', resp.status, '| resposta:', rawText.substring(0, 400));
+
+    if (resp.status === 524 || resp.status === 408) {
+      await enviarMensagemBot(grupoId, '⏳ A busca demorou demais. Tenta de novo!', botDados, { replyTo });
       return;
     }
 
-    const info = data?.data || data;
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (_) {
+      console.error('[Play] API não retornou JSON. Status:', resp.status);
+      await enviarMensagemBot(grupoId, '😥 Não encontrei essa música. Tenta outro nome ou artista!', botDados, { replyTo });
+      return;
+    }
+
+    const info = data?.data || data?.result || data;
 
     if (!info?.url || !info?.title) {
-      await enviarMensagemBot(grupoId,
-        '😥 Não encontrei essa música. Tenta outro nome ou artista!',
-        botDados, { replyTo }
-      );
+      console.log('[Play] Campos ausentes. data:', JSON.stringify(data).substring(0, 300));
+      await enviarMensagemBot(grupoId, '😥 Não encontrei essa música. Tenta outro nome ou artista!', botDados, { replyTo });
       return;
     }
 
-    const frase = FRASES_MUSICA[Math.floor(Math.random() * FRASES_MUSICA.length)];
-    const artista = info.channel?.name || info.channel || 'Desconhecido';
-    const duracao = formatarDuracao(info.total_duration_in_seconds || info.duration);
+    const frase    = FRASES_MUSICA[Math.floor(Math.random() * FRASES_MUSICA.length)];
+    const artista  = info.channel?.name || info.channel || info.artist || 'Desconhecido';
+    const duracao  = formatarDuracao(info.total_duration_in_seconds || info.duration);
 
     const infoTexto =
       `🎧 BoresBot Apresenta 🎧\n\n` +
@@ -123,8 +122,9 @@ module.exports = async function play({ grupoId, args, autorNome, botDados, reply
     console.error('[Play]', e.message);
 
     let msg = '❌ Não consegui tocar essa música. Tenta outra!';
-    if (e.message === 'TIMEOUT') msg = '⏳ A busca demorou demais. Tenta de novo!';
-    else if (e.message?.includes('ENOTFOUND') || e.message?.includes('ECONNREFUSED')) {
+    if (e.name === 'AbortError' || e.message === 'TIMEOUT') {
+      msg = '⏳ A busca demorou demais. Tenta de novo!';
+    } else if (e.message?.includes('ENOTFOUND') || e.message?.includes('ECONNREFUSED')) {
       msg = '🌐 Sem conexão com o serviço de músicas. Tenta mais tarde!';
     }
 
