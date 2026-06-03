@@ -384,6 +384,10 @@ async function processarComando(msgDoc, grupoId, botDados) {
       await usuario.voz(ctx);
       break;
 
+    case '/play':
+      await usuario.play(ctx);
+      break;
+
     case '/insignias':
       await usuario.insignias_cmd(ctx);
       break;

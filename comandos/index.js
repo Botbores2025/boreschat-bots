@@ -30,6 +30,7 @@ const sorteio       = require('./usuario/sorteio');
 const mencoes       = require('./usuario/mencoes');
 const voz           = require('./usuario/voz');
 const insignias_cmd = require('./usuario/insignias_cmd');
+const play          = require('./usuario/play');
 
 // ─── SISTEMA ─────────────────────────────────────────────────
 const xp         = require('./sistema/xp');
@@ -44,6 +45,6 @@ module.exports = {
   menu,
   adm:     { limpar, banir, remover, editarGrupo, adicionar, fecharGrupo },
   jogos:   { dado, quiz, tictac, campoMinado, paciencia },
-  usuario: { musica, gemini, clima, resumo, enquete, sorteio, mencoes, voz, insignias_cmd },
+  usuario: { musica, gemini, clima, resumo, enquete, sorteio, mencoes, voz, insignias_cmd, play },
   sistema: { xp, conquistas, economia, perfil, ranking, boasVindas, insignias },
 };
