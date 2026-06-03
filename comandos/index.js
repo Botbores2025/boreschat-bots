@@ -21,14 +21,15 @@ const campoMinado = require('./jogos/campoMinado');
 const paciencia  = require('./jogos/paciencia');
 
 // ─── USUARIO ─────────────────────────────────────────────────
-const musica     = require('./usuario/musica');
-const gemini     = require('./usuario/gemini');
-const clima      = require('./usuario/clima');
-const resumo     = require('./usuario/resumo');
-const enquete    = require('./usuario/enquete');
-const sorteio    = require('./usuario/sorteio');
-const mencoes    = require('./usuario/mencoes');
-const voz        = require('./usuario/voz');
+const musica        = require('./usuario/musica');
+const gemini        = require('./usuario/gemini');
+const clima         = require('./usuario/clima');
+const resumo        = require('./usuario/resumo');
+const enquete       = require('./usuario/enquete');
+const sorteio       = require('./usuario/sorteio');
+const mencoes       = require('./usuario/mencoes');
+const voz           = require('./usuario/voz');
+const insignias_cmd = require('./usuario/insignias_cmd');
 
 // ─── SISTEMA ─────────────────────────────────────────────────
 const xp         = require('./sistema/xp');
@@ -37,11 +38,12 @@ const conquistas = require('./sistema/conquistas');
 const economia   = require('./sistema/economia');
 const perfil     = require('./sistema/perfil');
 const ranking    = require('./sistema/ranking');
+const insignias  = require('./sistema/insignias');
 
 module.exports = {
   menu,
   adm:     { limpar, banir, remover, editarGrupo, adicionar, fecharGrupo },
   jogos:   { dado, quiz, tictac, campoMinado, paciencia },
-  usuario: { musica, gemini, clima, resumo, enquete, sorteio, mencoes, voz },
-  sistema: { xp, conquistas, economia, perfil, ranking, boasVindas },
+  usuario: { musica, gemini, clima, resumo, enquete, sorteio, mencoes, voz, insignias_cmd },
+  sistema: { xp, conquistas, economia, perfil, ranking, boasVindas, insignias },
 };

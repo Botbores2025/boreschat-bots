@@ -18,6 +18,7 @@ const { iniciarBotUsuario } = require('./bot-usuario');
 
 // ─── CARREGA TODOS OS MÓDULOS DE COMANDOS ───────────────────────────────────
 const { menu, adm, jogos, usuario, sistema } = require('./comandos');
+const { verificarInsigniasUsuario, verificarInsigniasGrupo } = require('./comandos/sistema/insignias');
 
 // ─── EXPRESS ─────────────────────────────────────────────────────────────────
 const app = express();
@@ -48,6 +49,9 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
+
+// ─── CONTADORES PARA VERIFICAÇÃO DE INSÍGNIAS ────────────────────────────────
+const contadoresInsignias = {}; // { userId: numeroMsgsEnviadas }
 
 // ─── LISTENERS ATIVOS ────────────────────────────────────────────────────────
 const listeners = {};
@@ -380,6 +384,10 @@ async function processarComando(msgDoc, grupoId, botDados) {
       await usuario.voz(ctx);
       break;
 
+    case '/insignias':
+      await usuario.insignias_cmd(ctx);
+      break;
+
     // ── SISTEMA ───────────────────────────────────────────────────────────────
     case '/perfil': {
       const targetId = dado.enviado_por;
@@ -521,6 +529,16 @@ async function iniciarListenerGrupo(grupoId, botDados) {
         } catch (_) {}
       }
 
+      // ─── Verifica insígnias a cada 100 msgs por usuário ──────────────────
+      const uid = dado.enviado_por;
+      if (uid) {
+        contadoresInsignias[uid] = (contadoresInsignias[uid] || 0) + 1;
+        if (contadoresInsignias[uid] >= 100) {
+          contadoresInsignias[uid] = 0;
+          verificarInsigniasUsuario(uid, db).catch(e => console.log('[Insignias] erro:', e.message));
+        }
+      }
+
       // ─── Resposta de quiz ou decisão A/B ─────────────────────────────────
       const txtUpper      = (dado.texto || '').trim().replace(/^\//, '').toUpperCase();
       const letraMatch    = txtUpper.match(/\b([ABCD])\b/);
@@ -633,6 +651,19 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
   listeners[chave] = unsub;
 }
+
+// ─── JOB PERIÓDICO DE INSÍGNIAS (6h) ─────────────────────────────────────────
+setInterval(async () => {
+  try {
+    console.log('[Insignias] Verificação periódica iniciada');
+    const usuariosSnap = await db.collection('usuarios').limit(100).get();
+    for (const userDoc of usuariosSnap.docs) {
+      await verificarInsigniasUsuario(userDoc.id, db);
+      await new Promise(r => setTimeout(r, 500));
+    }
+    console.log('[Insignias] Verificação periódica concluída');
+  } catch (e) { console.log('[Insignias] erro periódico:', e.message); }
+}, 6 * 60 * 60 * 1000);
 
 function pararListener(grupoId, token) {
   const chave = `${grupoId}_${token}`;
@@ -926,6 +957,16 @@ app.delete('/api/bot/:token', async (req, res) => {
   } catch (erro) {
     console.error('[Deletar Bot]', erro.message);
     res.status(500).json({ erro: erro.message });
+  }
+});
+
+// ─── ROTA INSÍGNIAS ──────────────────────────────────────────────────────────
+app.post('/api/insignias/verificar/:userId', async (req, res) => {
+  try {
+    const insignias = await verificarInsigniasUsuario(req.params.userId, db);
+    res.json({ sucesso: true, insignias });
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
   }
 });
 
