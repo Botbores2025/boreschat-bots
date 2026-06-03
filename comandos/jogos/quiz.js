@@ -525,8 +525,8 @@ async function verificarResposta({ grupoId, texto, autorNome, userId, nomeGrupo,
     // Errou — pergunta se quer continuar ou nova partida com botoes
     aguardandoDecisao[grupoId] = { userId, nome: autorNome };
     const botoes = [
-      { label: 'A) Continuar',     comando: 'A' },
-      { label: 'B) Nova Partida',  comando: 'B' },
+      { label: 'Continuar',    comando: 'A' },
+      { label: 'Nova Partida', comando: 'B' },
     ];
     await enviarMensagemBot(grupoId,
       `O que deseja fazer?`,

@@ -490,6 +490,7 @@ async function iniciarListenerGrupo(grupoId, botDados) {
 
       if (msgId === ultimoMsgIdProcessado) return;
       if (dado.ehBot) return;
+      if (dado.enviado_por === 'BOT_BORES_OFICIAL') return; // ignora mensagens do próprio bot
 
       // Marca imediatamente para evitar loop
       ultimoMsgIdProcessado = msgId;
