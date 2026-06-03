@@ -1055,14 +1055,14 @@ Máximo 3 frases por resposta. Sem markdown.`;
 // ─── ROTA: Criar pagamento PIX ───────────────────────────────────────────────
 app.post('/api/pagamento/criar', async (req, res) => {
   try {
-    const { userId, planoId, email } = req.body;
+    const { userId, planoId, email, nome } = req.body;
     if (!userId || !planoId) return res.status(400).json({ erro: 'Faltam dados' });
 
     const plano = PLANOS_PRECOS[planoId];
     if (!plano) return res.status(400).json({ erro: 'Plano inválido' });
 
     const pagamento = await criarPagamentoPix({
-      userId, planoId, email,
+      userId, planoId, email, nome,
       valor:    plano.preco,
       descricao: `BoresChat - Plano ${plano.nome} (30 dias)`,
     });

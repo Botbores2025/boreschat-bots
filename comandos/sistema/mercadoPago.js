@@ -7,14 +7,18 @@ const https = require('https');
 const MP_ACCESS_TOKEN = process.env.MERCADO_PAGO_ACCESS_TOKEN;
 const WEBHOOK_BASE    = process.env.WEBHOOK_URL || 'https://boreschat-bots-production.up.railway.app';
 
-async function criarPagamentoPix({ userId, planoId, email, valor, descricao }) {
+async function criarPagamentoPix({ userId, planoId, email, nome, valor, descricao }) {
   if (!MP_ACCESS_TOKEN) throw new Error('Pagamentos temporariamente indisponíveis');
 
   const body = JSON.stringify({
     transaction_amount: valor,
     description:        descricao,
+    statement_descriptor: 'BoresChat',      // nome que aparece como "para:" no PIX
     payment_method_id:  'pix',
-    payer:              { email: email || 'cliente@boreschat.com' },
+    payer: {
+      email:      email || 'cliente@boreschat.com',
+      first_name: nome  || 'Cliente',       // nome do pagador visível na transação
+    },
     external_reference: `${userId}|${planoId}|${Date.now()}`,
     notification_url:   `${WEBHOOK_BASE}/api/pagamento/webhook`,
   });
